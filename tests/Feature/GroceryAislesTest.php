@@ -81,6 +81,30 @@ class GroceryAislesTest extends TestCase
         $this->assertSame(GroceryAisle::Other, (new AisleGuesser)->guess('Birthday candles'));
     }
 
+    /**
+     * Prepared food must beat its own ingredient's aisle. "Rotisserie chicken"
+     * contains "chicken", and filing it under raw meat sends you to the wrong
+     * end of the shop.
+     */
+    public function test_prepared_food_outranks_the_raw_ingredient_it_names(): void
+    {
+        $guesser = new AisleGuesser;
+
+        $this->assertSame(GroceryAisle::ReadyToEat, $guesser->guess('Rotisserie chicken'));
+        $this->assertSame(GroceryAisle::ReadyToEat, $guesser->guess('Deli tray'));
+        // The raw form is unaffected.
+        $this->assertSame(GroceryAisle::Meat, $guesser->guess('Chicken breast'));
+    }
+
+    public function test_drinks_have_an_aisle_of_their_own(): void
+    {
+        $guesser = new AisleGuesser;
+
+        $this->assertSame(GroceryAisle::Drinks, $guesser->guess('Hard cider'));
+        $this->assertSame(GroceryAisle::Drinks, $guesser->guess('Orange juice'));
+        $this->assertSame(GroceryAisle::Drinks, $guesser->guess('Ground coffee'));
+    }
+
     /** A correction teaches the list, so the same item never re-sorts twice. */
     public function test_the_guesser_remembers_a_previous_correction(): void
     {

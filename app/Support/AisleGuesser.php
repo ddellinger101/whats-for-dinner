@@ -37,6 +37,20 @@ class AisleGuesser
     private function nameRules(): array
     {
         return [
+            // Prepared food comes first. "Rotisserie chicken" contains
+            // "chicken", so any later ordering files a hot counter item under
+            // raw meat — the same trap that put garlic powder in produce.
+            [GroceryAisle::ReadyToEat, [
+                'rotisserie', 'takeout', 'take out', 'pre-made', 'premade',
+                'lunchable', 'charcuterie', 'deli tray', 'ready meal',
+                'prepared', 'hot bar', 'salad bar',
+            ]],
+            [GroceryAisle::Drinks, [
+                'beer', 'wine', 'cider', 'soda', 'cola', 'juice', 'seltzer',
+                'sparkling water', 'coffee', 'tea', 'lemonade', 'kombucha',
+                'ale', 'lager', 'ipa', 'bourbon', 'whiskey', 'vodka', 'gin',
+                'tequila', 'rum', 'champagne', 'prosecco',
+            ]],
             [GroceryAisle::Seafood, [
                 'shrimp', 'prawn', 'salmon', 'tuna', 'cod', 'tilapia', 'halibut',
                 'crab', 'lobster', 'scallop', 'ahi', 'mahi', 'fish', 'anchov',
@@ -55,10 +69,6 @@ class AisleGuesser
             ]],
             [GroceryAisle::Frozen, [
                 'frozen', 'ice cream', 'popsicle',
-            ]],
-            [GroceryAisle::ReadyToEat, [
-                'rotisserie', 'takeout', 'take out', 'pre-made', 'premade',
-                'lunchable', 'charcuterie', 'deli tray',
             ]],
         ];
     }

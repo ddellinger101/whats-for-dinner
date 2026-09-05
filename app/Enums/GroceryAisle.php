@@ -19,6 +19,10 @@ enum GroceryAisle: string
     case Bakery = 'bakery';
     case Frozen = 'frozen';
     case Pantry = 'pantry';
+    // Not in the original list, but beer and cider were already on the real
+    // list with nowhere to go, and Other is meant to be a prompt rather than a
+    // permanent home.
+    case Drinks = 'drinks';
     case ReadyToEat = 'ready_to_eat';
     case Other = 'other';
 
@@ -46,6 +50,7 @@ enum GroceryAisle: string
             self::Dairy,
             self::Frozen,
             self::Pantry,
+            self::Drinks,
             self::ReadyToEat,
             self::Other,
         ];
