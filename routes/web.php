@@ -60,4 +60,5 @@ Route::middleware('auth')->group(function () {
     Route::get('/recipes/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
     Route::post('/recipes/{recipe}/rate', [RecipeController::class, 'rate'])->name('recipes.rate');
     Route::post('/recipes/{recipe}/cooked', [RecipeController::class, 'markCooked'])->name('recipes.cooked');
+    Route::post('/recipes/{recipe}/import', [RecipeController::class, 'importDetails'])->name('recipes.import');
 });

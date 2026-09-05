@@ -14,8 +14,11 @@ class SimpleItem extends Model
 
     protected $fillable = ['name', 'grocery_breakdown', 'meal_type_hint', 'breakdown_prompted'];
 
+    /** See the note on Recipe::$attributes — column defaults are not read back. */
     protected $attributes = [
         'grocery_breakdown' => '[]',
+        'meal_type_hint' => 'lunch',
+        'breakdown_prompted' => false,
     ];
 
     protected function casts(): array

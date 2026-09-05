@@ -91,9 +91,23 @@
                     @endforeach
                 </ul>
             @else
-                <p class="mt-5 rounded-xl bg-ink-100 px-4 py-3 text-sm text-ink-600">
-                    No ingredients recorded yet. They will be imported from the recipe link, or you can add them by hand.
-                </p>
+                <div class="mt-5 rounded-xl bg-ink-100 px-4 py-3">
+                    <p class="text-sm text-ink-600">No ingredients recorded yet.</p>
+                    @if (($recipe->recipe_links ?? []) !== [])
+                        <form method="POST" action="{{ route('recipes.import', $recipe) }}" class="mt-2">
+                            @csrf
+                            <button type="submit"
+                                    class="min-h-tap rounded-xl border border-ink-300 bg-white px-4 text-sm
+                                           font-medium text-ink-800 transition hover:border-brand-400">
+                                Fetch from the recipe link
+                            </button>
+                        </form>
+                    @else
+                        <p class="mt-1 text-sm text-ink-600">
+                            There&rsquo;s no link to import from, so these need adding by hand.
+                        </p>
+                    @endif
+                </div>
             @endif
 
             {{-- Spec 4.4: just_ok is the rating that wants a note. --}}

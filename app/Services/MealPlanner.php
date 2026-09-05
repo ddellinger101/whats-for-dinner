@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Enums\ComponentType;
+use App\Enums\IngredientsStatus;
 use App\Enums\MealSlot;
+use App\Jobs\ImportRecipeDetails;
 use App\Models\MealComponent;
 use App\Models\MealPlanEntry;
 use App\Models\Recipe;
@@ -64,8 +66,31 @@ class MealPlanner
             $this->windows->trackForComponent($component);
             $this->grocery->addForComponent($component);
 
+            $this->requestIngredientsIfMissing($recipe);
+
             return $component;
         });
+    }
+
+    /**
+     * Spec 4.7: the first time a recipe with missing ingredients is chosen as a
+     * main, try to import them from its link.
+     *
+     * Queued and deferred until the transaction commits — the slot must be
+     * filled instantly whether or not some recipe blog is reachable, and the
+     * worker must not look for a recipe that has not been written yet.
+     */
+    private function requestIngredientsIfMissing(Recipe $recipe): void
+    {
+        if ($recipe->ingredients_status !== IngredientsStatus::NotYetAdded) {
+            return;
+        }
+
+        if (($recipe->recipe_links ?? []) === []) {
+            return;
+        }
+
+        ImportRecipeDetails::dispatch($recipe->id)->afterCommit();
     }
 
     /**

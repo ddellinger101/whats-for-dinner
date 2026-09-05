@@ -27,9 +27,24 @@ class Recipe extends Model
         'image_path', 'image_source_url', 'image_status',
     ];
 
+    /**
+     * Mirrors the column defaults. A database default is only applied on INSERT
+     * and is not reflected back onto the model instance, so without these a
+     * freshly created Recipe has null enum attributes and any method called on
+     * one fatals.
+     */
     protected $attributes = [
         'category_tags' => '[]',
         'recipe_links' => '[]',
+        'protein_type' => 'none',
+        'meal_type' => 'dinner',
+        'rating' => 'unrated',
+        'ingredients_status' => 'not_yet_added',
+        'image_status' => 'none',
+        'is_keto' => false,
+        'created_from_import' => false,
+        'base_servings' => 4,
+        'times_made' => 0,
     ];
 
     protected function casts(): array

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\CategoryTag;
 use App\Enums\ProteinType;
 use App\Enums\Rating;
+use App\Jobs\ImportRecipeDetails;
 use App\Models\HouseholdSetting;
 use App\Models\Recipe;
 use Illuminate\Http\RedirectResponse;
@@ -71,6 +72,21 @@ class RecipeController extends Controller
         ]);
 
         return back()->with('status', 'Rating saved.');
+    }
+
+    /**
+     * Spec 4.7: ask for an ingredient import by hand, for when the automatic
+     * attempt on first selection found nothing, or the link has since been fixed.
+     */
+    public function importDetails(Recipe $recipe): RedirectResponse
+    {
+        if (($recipe->recipe_links ?? []) === []) {
+            return back()->withErrors(['recipe' => 'This recipe has no link to import from.']);
+        }
+
+        ImportRecipeDetails::dispatch($recipe->id);
+
+        return back()->with('status', 'Fetching ingredients from the recipe link. Check back in a moment.');
     }
 
     /**
