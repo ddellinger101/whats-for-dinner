@@ -8,9 +8,9 @@ use App\Enums\IngredientCategory;
  * Guesses which category a scraped ingredient belongs to.
  *
  * The category is not cosmetic: it sets the default shelf life and decides
- * whether an ingredient gets a use-by window at all (spec 4.1), so a scraped
- * ingredient with no category would quietly opt out of the feature the app
- * exists for. Every guess is editable per ingredient.
+ * whether an ingredient gets a use-by window at all (spec 4.1), so a wrong
+ * guess makes the suggestion ranker chase a use-up opportunity that does not
+ * exist. Every guess is editable per ingredient.
  *
  * Deliberately keyword-based. It will be wrong sometimes; being wrong in a way
  * the user can see and correct beats being absent.
@@ -18,75 +18,96 @@ use App\Enums\IngredientCategory;
 class IngredientCategoryGuesser
 {
     /**
-     * Order matters: the first category with a matching keyword wins, so the
-     * more specific lists come before the broad ones.
+     * Ordered rules — the first matching keyword wins, so the more specific
+     * rules come first. A category may appear more than once at different
+     * priorities, which is why this is a list of pairs rather than a map.
      *
-     * @var array<string, list<string>>
+     * @return list<array{IngredientCategory, list<string>}>
      */
-    private const KEYWORDS = [
-        IngredientCategory::Frozen->value => [
-            'frozen', 'ice cream', 'popsicle',
-        ],
-        IngredientCategory::Condiment->value => [
-            'ketchup', 'mustard', 'mayo', 'mayonnaise', 'soy sauce', 'hot sauce',
-            'sriracha', 'vinegar', 'worcestershire', 'bbq sauce', 'barbecue sauce',
-            'ranch', 'dressing', 'relish', 'horseradish', 'fish sauce', 'sesame oil',
-            'olive oil', 'vegetable oil', 'canola oil', 'cooking spray', 'honey',
-            'maple syrup', 'peanut butter', 'jam', 'jelly', 'pesto',
-        ],
-        IngredientCategory::Dairy->value => [
-            'milk', 'cream', 'butter', 'cheese', 'yogurt', 'yoghurt', 'sour cream',
-            'half and half', 'creme fraiche', 'mozzarella', 'parmesan', 'cheddar',
-            'ricotta', 'feta', 'egg', 'eggs', 'buttermilk', 'mascarpone', 'gouda',
-            'provolone', 'cottage cheese', 'cream cheese',
-        ],
-        IngredientCategory::Protein->value => [
-            'chicken', 'beef', 'pork', 'turkey', 'lamb', 'bacon', 'sausage',
-            'steak', 'ground', 'mince', 'shrimp', 'prawn', 'salmon', 'tuna',
-            'fish', 'cod', 'tilapia', 'ham', 'chorizo', 'pepperoni', 'brisket',
-            'ribs', 'tenderloin', 'thigh', 'breast', 'drumstick', 'scallop',
-            'crab', 'lobster', 'tofu', 'venison', 'meatball',
-        ],
-        IngredientCategory::JarredCanned->value => [
-            'canned', 'can of', 'jarred', 'tomato paste', 'tomato sauce', 'salsa',
-            'broth', 'stock', 'coconut milk', 'olives', 'pickles', 'capers',
-            'enchilada sauce', 'marinara', 'refried', 'chipotle in adobo',
-            'diced tomatoes', 'crushed tomatoes', 'tomato puree',
-        ],
-        IngredientCategory::Produce->value => [
-            'onion', 'garlic', 'tomato', 'lettuce', 'spinach', 'kale', 'carrot',
-            // Deliberately not a bare "pepper": that matches black pepper and
-            // "salt and pepper", which are pantry seasonings, not produce.
-            'celery', 'bell pepper', 'red pepper', 'green pepper', 'poblano',
-            'serrano', 'jalapeno', 'jalapeño', 'cucumber',
-            'zucchini', 'squash', 'broccoli', 'cauliflower', 'mushroom', 'potato',
-            'sweet potato', 'avocado', 'lime', 'lemon', 'cilantro', 'parsley',
-            'basil', 'thyme', 'rosemary', 'ginger', 'scallion', 'green onion',
-            'shallot', 'cabbage', 'corn', 'peas', 'green bean', 'asparagus',
-            'apple', 'banana', 'berry', 'berries', 'strawberr', 'blueberr',
-            'grape', 'orange', 'pineapple', 'mango', 'peach', 'pear', 'melon',
-            'cranberr', 'raspberr', 'herb', 'leek', 'radish', 'beet', 'eggplant',
-        ],
-        IngredientCategory::PantryDry->value => [
-            'flour', 'sugar', 'salt', 'pepper', 'peppercorn', 'baking powder', 'baking soda',
-            'rice', 'pasta', 'noodle', 'bread', 'breadcrumb', 'oat', 'quinoa',
-            'lentil', 'bean', 'chickpea', 'cornstarch', 'cocoa', 'vanilla',
-            'cinnamon', 'cumin', 'paprika', 'oregano', 'chili powder', 'curry',
-            'turmeric', 'nutmeg', 'yeast', 'gelatin', 'cereal', 'cracker',
-            'tortilla', 'taco shell', 'bun', 'seasoning', 'spice', 'stuffing',
-            'almond', 'walnut', 'pecan', 'cashew', 'peanut', 'sesame seed',
-            'chocolate chip', 'powdered sugar', 'brown sugar', 'panko',
-        ],
-    ];
+    private function rules(): array
+    {
+        return [
+            [IngredientCategory::Frozen, [
+                'frozen', 'ice cream', 'popsicle',
+            ]],
+
+            // Dried and powdered forms come first because they share their
+            // names with fresh ingredients. Garlic powder is not garlic, and
+            // would otherwise inherit produce's six-day shelf life and start
+            // generating use-by windows for a jar that keeps for a year.
+            [IngredientCategory::PantryDry, [
+                'powder', 'powdered', 'dried', 'seasoning', 'extract', 'flakes',
+                'granulated', 'bouillon', 'ground cinnamon', 'ground cumin',
+            ]],
+
+            [IngredientCategory::Condiment, [
+                'ketchup', 'mustard', 'mayo', 'mayonnaise', 'soy sauce', 'hot sauce',
+                'sriracha', 'vinegar', 'worcestershire', 'bbq sauce', 'barbecue sauce',
+                'ranch', 'dressing', 'relish', 'horseradish', 'fish sauce', 'sesame oil',
+                'olive oil', 'vegetable oil', 'canola oil', 'avocado oil', 'cooking spray',
+                'honey', 'maple syrup', 'peanut butter', 'jam', 'jelly', 'pesto',
+            ]],
+
+            // Before protein: "chicken broth" is a shelf-stable carton, not raw
+            // chicken, and a three-day shelf life on it would be nonsense.
+            [IngredientCategory::JarredCanned, [
+                'broth', 'stock', 'canned', 'can of', 'jarred', 'tomato paste',
+                'tomato sauce', 'salsa', 'coconut milk', 'olives', 'pickles',
+                'capers', 'enchilada sauce', 'marinara', 'refried', 'adobo',
+                'diced tomatoes', 'crushed tomatoes', 'tomato puree', 'green chiles',
+            ]],
+
+            [IngredientCategory::Dairy, [
+                'milk', 'cream', 'butter', 'cheese', 'yogurt', 'yoghurt',
+                'half and half', 'half & half', 'creme fraiche', 'mozzarella',
+                'parmesan', 'cheddar', 'ricotta', 'feta', 'egg', 'buttermilk',
+                'mascarpone', 'gouda', 'provolone',
+            ]],
+
+            [IngredientCategory::Protein, [
+                'chicken', 'beef', 'pork', 'turkey', 'lamb', 'bacon', 'sausage',
+                'steak', 'ground', 'mince', 'shrimp', 'prawn', 'salmon', 'tuna',
+                'fish', 'cod', 'tilapia', 'ham', 'chorizo', 'pepperoni', 'brisket',
+                'ribs', 'tenderloin', 'thigh', 'breast', 'drumstick', 'scallop',
+                'crab', 'lobster', 'tofu', 'venison', 'meatball',
+            ]],
+
+            [IngredientCategory::Produce, [
+                'onion', 'garlic', 'tomato', 'lettuce', 'spinach', 'kale', 'carrot',
+                // Deliberately not a bare "pepper": that matches black pepper
+                // and "salt and pepper", which are pantry seasonings.
+                'celery', 'bell pepper', 'red pepper', 'green pepper', 'poblano',
+                'serrano', 'jalapeno', 'jalapeño', 'cucumber',
+                'zucchini', 'squash', 'broccoli', 'cauliflower', 'mushroom', 'potato',
+                'avocado', 'lime', 'lemon', 'cilantro', 'parsley',
+                'basil', 'thyme', 'rosemary', 'ginger', 'scallion', 'green onion',
+                'shallot', 'cabbage', 'corn', 'peas', 'green bean', 'asparagus',
+                'apple', 'banana', 'berry', 'berries', 'strawberr', 'blueberr',
+                'grape', 'orange', 'pineapple', 'mango', 'peach', 'pear', 'melon',
+                'cranberr', 'raspberr', 'herb', 'leek', 'radish', 'beet', 'eggplant',
+            ]],
+
+            [IngredientCategory::PantryDry, [
+                'flour', 'sugar', 'salt', 'pepper', 'peppercorn', 'baking powder',
+                'baking soda', 'rice', 'pasta', 'noodle', 'bread', 'breadcrumb',
+                'oat', 'quinoa', 'lentil', 'bean', 'chickpea', 'cornstarch', 'cocoa',
+                'vanilla', 'cinnamon', 'cumin', 'paprika', 'oregano', 'chili powder',
+                'curry', 'turmeric', 'nutmeg', 'yeast', 'gelatin', 'cereal', 'cracker',
+                'tortilla', 'taco shell', 'bun', 'spice', 'stuffing', 'almond',
+                'walnut', 'pecan', 'cashew', 'peanut', 'sesame seed', 'chocolate chip',
+                'panko', 'broth concentrate',
+            ]],
+        ];
+    }
 
     public function guess(string $ingredientName): IngredientCategory
     {
         $name = mb_strtolower($ingredientName);
 
-        foreach (self::KEYWORDS as $category => $keywords) {
+        foreach ($this->rules() as [$category, $keywords]) {
             foreach ($keywords as $keyword) {
                 if (str_contains($name, $keyword)) {
-                    return IngredientCategory::from($category);
+                    return $category;
                 }
             }
         }

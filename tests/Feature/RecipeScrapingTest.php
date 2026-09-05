@@ -102,6 +102,27 @@ class RecipeScrapingTest extends TestCase
     }
 
     /**
+     * Shelf-stable forms share their names with fresh ingredients. Getting this
+     * wrong does not just mislabel — it opens a use-by window on a jar that
+     * keeps for a year, and the ranker then pushes recipes to "use it up".
+     */
+    public function test_shelf_stable_forms_are_not_treated_as_fresh(): void
+    {
+        $guesser = new IngredientCategoryGuesser;
+
+        $this->assertSame(IngredientCategory::PantryDry, $guesser->guess('Garlic powder'));
+        $this->assertSame(IngredientCategory::PantryDry, $guesser->guess('Onion powder'));
+        $this->assertSame(IngredientCategory::PantryDry, $guesser->guess('Dried oregano'));
+        $this->assertSame(IngredientCategory::PantryDry, $guesser->guess('Italian seasoning'));
+        $this->assertSame(IngredientCategory::JarredCanned, $guesser->guess('Chicken broth'));
+        $this->assertSame(IngredientCategory::JarredCanned, $guesser->guess('Beef stock'));
+
+        // The fresh forms must still land where they belong.
+        $this->assertSame(IngredientCategory::Produce, $guesser->guess('Garlic'));
+        $this->assertSame(IngredientCategory::Protein, $guesser->guess('Chicken breast'));
+    }
+
+    /**
      * An unrecognised ingredient must still take part in use-by tracking, or it
      * silently opts out of the feature the app exists for.
      */
