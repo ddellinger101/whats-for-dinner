@@ -37,10 +37,13 @@ class RecipeTagGuesser
                 'parm', 'pizza', 'risotto', 'gnocchi', 'marinara', 'bolognese',
                 'pesto', 'carbonara', 'ravioli', 'italian', 'bruschetta', 'caprese',
                 'ziti', 'fettuccine', 'penne', 'tuscan', 'piccata', 'scampi',
-                'calzone', 'stromboli', 'tortellini', 'orzo',
+                'calzone', 'stromboli', 'tortellini', 'orzo', 'primavera',
+                'sausage and peppers', 'bruschetta', 'focaccia',
             ],
             CategoryTag::Asian->value => [
-                'stir fry', 'stir-fry', 'teriyaki', 'sushi', 'ramen', 'lo mein',
+                // The cuisine's own name has to be in its own list. Without it
+                // "Polynesian Chicken" went untagged, which is an absurd miss.
+                'asian', 'stir fry', 'stir-fry', 'teriyaki', 'sushi', 'ramen', 'lo mein',
                 'chow mein', 'fried rice', 'hoisin', 'orange chicken', 'general tso',
                 'pad thai', 'curry', 'dumpling', 'egg roll', 'spring roll', 'bang bang',
                 'sesame chicken', 'korean', 'thai', 'chinese', 'japanese', 'vietnamese',
@@ -48,10 +51,11 @@ class RecipeTagGuesser
                 'wonton', 'gyoza', 'lettuce wrap', 'crab rangoon', 'tikka', 'masala',
             ],
             CategoryTag::Polynesian->value => [
-                'hawaiian', 'pineapple', 'kalua', 'luau', 'huli', 'poke', 'macadamia',
-                'musubi', 'ahi', 'seaweed salad', 'teriyaki pineapple', 'tropical',
+                'polynesian', 'hawaiian', 'pineapple', 'kalua', 'luau', 'huli', 'poke',
+                'macadamia', 'musubi', 'ahi', 'seaweed salad', 'tropical',
             ],
             CategoryTag::American->value => [
+                'american', 'london broil', 'shrimp boil', 'crawfish boil', 'po boy',
                 'burger', 'hot dog', 'meatloaf', 'mac and cheese', 'macaroni and cheese',
                 'pot roast', 'sloppy joe', 'fried chicken', 'bbq', 'barbecue', 'philly',
                 'cheesesteak', 'buffalo', 'ranch', 'corn dog', 'biscuits and gravy',
@@ -67,7 +71,7 @@ class RecipeTagGuesser
             CategoryTag::ComfortFood->value => [
                 'casserole', 'meatloaf', 'mac and cheese', 'macaroni', 'pot pie',
                 'shepherd', 'pot roast', 'gravy', 'biscuit', 'mashed', 'dumpling',
-                'stuffed', 'skillet', 'bake',
+                'stuffed', 'skillet', 'bake', 'stroganoff', 'french onion',
             ],
             CategoryTag::Holiday->value => [
                 'thanksgiving', 'christmas', 'easter', 'holiday', 'stuffing',

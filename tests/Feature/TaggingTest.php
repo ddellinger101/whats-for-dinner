@@ -115,6 +115,23 @@ class TaggingTest extends TestCase
         $this->assertContains('american', $this->guessTags('Bacon Cheeseburger'));
     }
 
+    /**
+     * A cuisine's own name must be in its own keyword list. Leaving it out made
+     * "Polynesian Chicken w/ Rice" come back untagged, which is absurd.
+     */
+    public function test_a_cuisine_named_outright_is_always_tagged(): void
+    {
+        foreach (CategoryTag::cuisines() as $cuisine) {
+            $tags = $this->guessTags($cuisine->label().' Chicken');
+
+            $this->assertContains(
+                $cuisine->value,
+                $tags,
+                "naming {$cuisine->label()} outright should tag it",
+            );
+        }
+    }
+
     /** Ingredients carry the cuisine when the name does not. */
     public function test_ingredients_reveal_a_cuisine_the_name_hides(): void
     {
