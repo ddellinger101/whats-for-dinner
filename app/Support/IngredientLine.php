@@ -73,6 +73,7 @@ readonly class IngredientLine
         'can', 'cans', 'box', 'boxes', 'bag', 'bags', 'jar', 'jars', 'bottle',
         'bottles', 'container', 'containers', 'package', 'packages', 'pkg',
         'packet', 'packets', 'tub', 'tubs', 'carton', 'cartons', 'block', 'blocks',
+        'pk', 'pack', 'packs', 'ounce', 'ounces',
     ];
 
     /**
@@ -89,6 +90,8 @@ readonly class IngredientLine
         $raw = trim($line);
         $working = mb_strtolower($raw);
 
+        // Leading punctuation left over from list markup: "/ /3-4lbs beef".
+        $working = preg_replace('/^[^\p{L}\p{N}]+/u', '', $working) ?? $working;
         $working = self::stripLabel($working);
         $working = strtr($working, self::FRACTIONS);
         $working = self::normaliseAmounts($working);
@@ -229,9 +232,16 @@ readonly class IngredientLine
         // Everything after the first comma is preparation, not identity.
         $text = explode(',', $text)[0];
 
-        // "X or Y" is one ingredient with a substitution offered; the first is
-        // what the recipe actually calls for.
-        $text = preg_split('/\s+\bor\b\s+/u', trim($text))[0] ?? $text;
+        // "X or Y" offers a substitution, and the first is what the recipe
+        // actually calls for — but only when the left side is a complete thing.
+        // In "brown or jasmine rice" the alternation is on the adjective, and
+        // splitting yields "brown", so a single word before the "or" is left
+        // alone. A long correct name beats a short wrong one.
+        $parts = preg_split('/\s+\bor\b\s+/u', trim($text)) ?: [$text];
+
+        if (count($parts) > 1 && str_word_count($parts[0]) >= 2) {
+            $text = $parts[0];
+        }
 
         $text = preg_replace('/^(of|a|an)\s+/', '', trim($text)) ?? $text;
 

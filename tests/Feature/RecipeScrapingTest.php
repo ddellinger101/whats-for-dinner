@@ -65,6 +65,12 @@ class RecipeScrapingTest extends TestCase
             ],
             'bare measurement' => ['Teaspoon* salt', null, null, 'Salt'],
             'substitution offered' => ['Low sodium soy sauce or tamari', null, null, 'Low sodium soy sauce'],
+            // The alternation is on the adjective, so splitting would leave
+            // "Brown" — a long correct name beats a short wrong one.
+            'alternation on a modifier' => ['Brown or jasmine rice', null, null, 'Brown or jasmine rice'],
+            'modifier alternation, plural' => ['Medium or large shrimp', null, null, 'Medium or large shrimp'],
+            'multipack' => ['12pk Yuengling', 12.0, null, 'Yuengling'],
+            'leading list punctuation' => ['/ 2 lbs beef roast', 2.0, 'lb', 'Beef roast'],
         ];
     }
 
