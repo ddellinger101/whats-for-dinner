@@ -87,6 +87,26 @@
             </div>
         </div>
 
+        {{-- Offered while filling a slot, not only from the browser: "nothing
+             here appeals" is a thought people have with an empty Tuesday in
+             front of them. Carries the slot along so adding one comes back
+             here rather than stranding them in the recipe list. --}}
+        <a href="{{ route('discover', array_filter([
+                'q' => $search ?: null,
+                'protein' => $protein,
+                'tag' => $tag,
+                'return_to' => request()->getRequestUri(),
+            ])) }}"
+           class="mt-3 flex items-center gap-3 rounded-xl border border-leaf-500/50 bg-leaf-500/5 px-4 py-3
+                  transition active:scale-[.99]">
+            <svg class="size-5 shrink-0 text-leaf-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>
+            </svg>
+            <span class="min-w-0 flex-1 text-sm font-semibold text-ink-900">Try Something New</span>
+            <span class="shrink-0 text-xs text-ink-400">search the web</span>
+        </a>
+
         @if ($suggestions->isEmpty())
             <p class="mt-3 rounded-xl border border-dashed border-ink-200 px-4 py-6 text-center text-sm text-ink-600">
                 No recipes match.

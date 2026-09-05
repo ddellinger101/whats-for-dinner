@@ -47,4 +47,12 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI', env('APP_URL').'/auth/google/callback'),
     ],
 
+    /*
+     * Recipe discovery. Every search costs quota, so results are cached —
+     * see SerpApiRecipeSearch.
+     */
+    'serpapi' => [
+        'key' => env('SERPAPI_KEY'),
+    ],
+
 ];

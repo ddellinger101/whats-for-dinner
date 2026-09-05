@@ -49,6 +49,25 @@
         </div>
     </form>
 
+    {{-- 143 recipes is a lot to be bored of, so the way out is offered here
+         rather than buried in a menu. --}}
+    <a href="{{ route('discover', array_filter(['q' => $search ?: null, 'protein' => $protein, 'tag' => $tag])) }}"
+       class="mt-4 flex items-center gap-3 rounded-2xl border border-leaf-500/50 bg-leaf-500/5 p-4
+              shadow-sm transition active:scale-[.99]">
+        <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-leaf-500/15 text-leaf-600">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>
+            </svg>
+        </span>
+        <span class="min-w-0 flex-1">
+            <span class="block font-semibold text-ink-900">Try Something New</span>
+            <span class="mt-0.5 block text-sm text-ink-600">Find recipes from around the web</span>
+        </span>
+        <svg class="size-5 shrink-0 text-ink-300" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+    </a>
+
     <p class="mt-4 px-1 text-xs text-ink-400">{{ $recipes->total() }} recipes</p>
 
     <ul class="mt-2 space-y-2">

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\DiscoverController;
 use App\Http\Controllers\GoogleController;
 use App\Http\Controllers\GroceryController;
 use App\Http\Controllers\HomeController;
@@ -88,6 +89,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/grocery/{item}/stocked', [GroceryController::class, 'markStocked'])->name('grocery.stocked');
     Route::post('/grocery/{item}/aisle', [GroceryController::class, 'setAisle'])->name('grocery.aisle');
     Route::post('/grocery/clear-purchased', [GroceryController::class, 'clearPurchased'])->name('grocery.clear');
+
+    // "Try something new" — recipes from outside the household's own library.
+    Route::get('/discover', [DiscoverController::class, 'index'])->name('discover');
+    Route::post('/discover', [DiscoverController::class, 'store'])->name('discover.store');
 
     Route::get('/recipes', [RecipeController::class, 'index'])->name('recipes');
     // Declared before the {recipe} route, or "new" is read as a recipe id.

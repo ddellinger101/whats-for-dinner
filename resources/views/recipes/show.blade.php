@@ -85,6 +85,17 @@
                 </div>
             @endif
 
+            @if ($recipe->source->needsAttribution() && $recipe->source_url)
+                {{-- Someone else's work, credited wherever it is shown. --}}
+                <p class="mt-3 text-sm text-ink-600">
+                    From
+                    <a href="{{ $recipe->source_url }}" target="_blank" rel="noopener noreferrer"
+                       class="font-medium text-brand-600 underline underline-offset-2 hover:text-brand-700">
+                        {{ $recipe->source_name ?: parse_url($recipe->source_url, PHP_URL_HOST) }}
+                    </a>
+                </p>
+            @endif
+
             @foreach ($recipe->recipe_links ?? [] as $link)
                 <a href="{{ $link }}" target="_blank" rel="noopener noreferrer"
                    class="mt-3 flex min-h-tap items-center gap-1.5 truncate text-sm font-medium

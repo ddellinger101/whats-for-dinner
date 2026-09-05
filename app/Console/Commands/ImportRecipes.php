@@ -110,6 +110,7 @@ class ImportRecipes extends Command
                     'category_tags' => $isKeto ? [CategoryTag::Keto->value] : [],
                     'ingredients_status' => IngredientsStatus::NotYetAdded,
                     'created_from_import' => true,
+                    'source' => \App\Enums\RecipeSource::Spreadsheet,
                 ];
 
                 if ($dryRun) {

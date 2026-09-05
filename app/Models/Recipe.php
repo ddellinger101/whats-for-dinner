@@ -25,6 +25,7 @@ class Recipe extends Model
         'recipe_links', 'base_servings', 'rating', 'times_made',
         'ingredients_status', 'notes', 'created_from_import', 'last_cooked_on',
         'image_path', 'image_source_url', 'image_status',
+        'source', 'source_url', 'source_name', 'external_id',
     ];
 
     /**
@@ -41,6 +42,7 @@ class Recipe extends Model
         'rating' => 'unrated',
         'ingredients_status' => 'not_yet_added',
         'image_status' => 'none',
+        'source' => 'manual',
         'is_keto' => false,
         'created_from_import' => false,
         'base_servings' => 4,
@@ -57,6 +59,7 @@ class Recipe extends Model
             'rating' => Rating::class,
             'ingredients_status' => IngredientsStatus::class,
             'image_status' => ImageStatus::class,
+            'source' => \App\Enums\RecipeSource::class,
             'is_keto' => 'boolean',
             'created_from_import' => 'boolean',
             'base_servings' => 'integer',
