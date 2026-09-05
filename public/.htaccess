@@ -14,7 +14,23 @@
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
     # Redirect Trailing Slashes If Not A Folder...
+    #
+    # Cloudways terminates TLS at Varnish/nginx and forwards to Apache over
+    # plain HTTP, so Apache's own idea of the scheme is http. The stock rule
+    # emits a bare path, which Apache expands into an absolute http:// URL and
+    # silently drops visitors off HTTPS. Trusting proxy headers in PHP cannot
+    # fix this because the redirect happens before PHP runs, so the scheme is
+    # reconstructed here from X-Forwarded-Proto instead.
+    #
+    # The capturing condition is kept last in each block: %1 refers to the most
+    # recently matched RewriteCond, so reordering these would break the path.
     RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{HTTP:X-Forwarded-Proto} =https
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ https://%{HTTP_HOST}%1 [L,R=301]
+
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{HTTP:X-Forwarded-Proto} !=https
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
