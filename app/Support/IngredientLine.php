@@ -65,12 +65,33 @@ readonly class IngredientLine
         'freshly', 'cut into', 'torn', 'crumbled', 'seeded', 'stemmed', 'zested',
     ];
 
+    /**
+     * Containers the amount is packaged in. "15 oz cans great northern beans"
+     * is beans, not cans, so these are dropped once the unit is known.
+     */
+    private const CONTAINER_WORDS = [
+        'can', 'cans', 'box', 'boxes', 'bag', 'bags', 'jar', 'jars', 'bottle',
+        'bottles', 'container', 'containers', 'package', 'packages', 'pkg',
+        'packet', 'packets', 'tub', 'tubs', 'carton', 'cartons', 'block', 'blocks',
+    ];
+
+    /**
+     * Measurement words that turn up with no number in front, usually because
+     * the site wrote "Teaspoon* salt" or "Handful each fresh thyme".
+     */
+    private const BARE_MEASURES = [
+        'teaspoon', 'teaspoons', 'tablespoon', 'tablespoons', 'handful',
+        'handfuls', 'pinch', 'dash', 'splash', 'each', 'to taste',
+    ];
+
     public static function parse(string $line): self
     {
         $raw = trim($line);
         $working = mb_strtolower($raw);
 
+        $working = self::stripLabel($working);
         $working = strtr($working, self::FRACTIONS);
+        $working = self::normaliseAmounts($working);
 
         // Bracketed asides are almost always metric equivalents or brand notes.
         // Applied repeatedly because they nest — "2 (6-ounce) breasts)" would
@@ -87,6 +108,7 @@ readonly class IngredientLine
 
         [$quantity, $working] = self::extractQuantity($working);
         [$unit, $working] = self::extractUnit($working);
+        $working = self::stripContainers($working);
 
         $name = self::cleanName($working);
 
@@ -99,6 +121,59 @@ readonly class IngredientLine
             // missing one.
             name: $name !== '' ? $name : $raw,
         );
+    }
+
+    /**
+     * Strip a leading label.
+     *
+     * Recipe sites head their lists with "Garnish:", "Toppings:" or "For the
+     * caesar salad:". A short tail after the colon is the actual ingredient; a
+     * long one is prose about it, in which case the words before the colon are
+     * the closest thing to a name.
+     */
+    private static function stripLabel(string $text): string
+    {
+        $colon = mb_strpos($text, ':');
+
+        if ($colon === false) {
+            return $text;
+        }
+
+        $before = trim(mb_substr($text, 0, $colon));
+        $after = trim(mb_substr($text, $colon + 1));
+
+        if ($after === '') {
+            return $before;
+        }
+
+        return mb_strlen($after) <= 40 ? $after : $before;
+    }
+
+    /**
+     * Pull joined amounts apart: "15oz", "450g" and "14.5-ounce" are all one
+     * token as written, so neither the quantity nor the unit is found.
+     * Hyphens between two numbers are left alone, since "2-3" is a range.
+     */
+    private static function normaliseAmounts(string $text): string
+    {
+        $text = preg_replace('/(\d)-(?=[a-z])/u', '$1 ', $text) ?? $text;
+        $text = preg_replace('/(\d)(?=[a-z])/u', '$1 ', $text) ?? $text;
+
+        return $text;
+    }
+
+    /**
+     * Drop the packaging once the amount has been read off it.
+     */
+    private static function stripContainers(string $text): string
+    {
+        $words = preg_split('/\s+/', trim($text)) ?: [];
+
+        while ($words !== [] && in_array($words[0], self::CONTAINER_WORDS, true)) {
+            array_shift($words);
+        }
+
+        return implode(' ', $words);
     }
 
     /**
@@ -154,7 +229,26 @@ readonly class IngredientLine
         // Everything after the first comma is preparation, not identity.
         $text = explode(',', $text)[0];
 
+        // "X or Y" is one ingredient with a substitution offered; the first is
+        // what the recipe actually calls for.
+        $text = preg_split('/\s+\bor\b\s+/u', trim($text))[0] ?? $text;
+
         $text = preg_replace('/^(of|a|an)\s+/', '', trim($text)) ?? $text;
+
+        // Measurement words with no number in front, left behind by lines like
+        // "Teaspoon* salt" or "Handful each fresh thyme".
+        $changed = true;
+        while ($changed) {
+            $changed = false;
+            foreach (self::BARE_MEASURES as $measure) {
+                $pattern = '/^'.preg_quote($measure, '/').'\*?\b\s*/u';
+                $stripped = preg_replace($pattern, '', $text) ?? $text;
+                if ($stripped !== $text) {
+                    $text = $stripped;
+                    $changed = true;
+                }
+            }
+        }
 
         foreach (self::PREP_WORDS as $word) {
             $text = preg_replace('/\b'.preg_quote($word, '/').'\b/', ' ', $text) ?? $text;

@@ -51,6 +51,20 @@ class RecipeScrapingTest extends TestCase
             // Nested brackets used to strand the closing one in the name.
             'nested parenthetical' => ['2 (6-ounce (170g)) chicken breasts', 2.0, null, 'Chicken breasts'],
             'unbalanced bracket' => ['1 cup heavy cream)', 1.0, 'cup', 'Heavy cream'],
+            // Amounts written joined to their unit, which used to defeat both.
+            'joined unit' => ['15oz cans great northern beans', 15.0, 'oz', 'Great northern beans'],
+            'metric joined' => ['450g large shrimp', 450.0, 'g', 'Large shrimp'],
+            'hyphenated unit' => ['14.5-ounce can tomatoes', 14.5, 'oz', 'Tomatoes'],
+            'container dropped' => ['16-ounce box pasta', 16.0, 'oz', 'Pasta'],
+            // Section labels and prose from the source page.
+            'label prefix' => ['Garnish: parsley', null, null, 'Parsley'],
+            'empty label tail' => ['For the caesar salad:', null, null, 'For the caesar salad'],
+            'prose after colon' => [
+                'Lemon juice: a squeeze of fresh lemon juice brightens the whole dish',
+                null, null, 'Lemon juice',
+            ],
+            'bare measurement' => ['Teaspoon* salt', null, null, 'Salt'],
+            'substitution offered' => ['Low sodium soy sauce or tamari', null, null, 'Low sodium soy sauce'],
         ];
     }
 
