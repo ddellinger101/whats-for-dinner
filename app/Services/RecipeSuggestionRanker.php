@@ -36,6 +36,7 @@ class RecipeSuggestionRanker
 
     public function __construct(
         private readonly UseByWindowTracker $windows = new UseByWindowTracker,
+        private readonly InventoryService $inventory = new InventoryService,
     ) {}
 
     /**
@@ -45,8 +46,29 @@ class RecipeSuggestionRanker
     {
         $settings = HouseholdSetting::current();
 
+        // Two sources of "use this up", unioned into one set of ingredient ids.
+        //
+        // Use-by windows cover what this week's plan will cause to be bought
+        // (spec 4.1). The pantry covers what is physically in the fridge now.
+        // An ingredient in both counts once — it is a set, not a tally — and
+        // either alone is a good enough reason to favour a recipe.
         $openWindows = $this->windows->openWindows($date);
-        $atRiskIds = $openWindows->keys()->all();
+
+        // toBase() is load-bearing: Eloquent's map only downgrades to a plain
+        // collection when the result contains a non-model, so an empty set of
+        // windows stays an Eloquent collection, and merging strings into one
+        // makes it call getKey() on them.
+        $atRisk = $openWindows
+            ->map(fn ($window) => $window->ingredient?->name)
+            ->toBase()
+            ->merge(
+                $this->inventory->atRisk($date)
+                    ->mapWithKeys(fn ($flag) => [$flag->ingredient_id => $flag->ingredient?->name])
+                    ->toBase(),
+            )
+            ->filter();
+
+        $atRiskIds = $atRisk->keys()->all();
         $previousProtein = $this->previousDayProtein($date);
 
         $candidates = Recipe::query()
@@ -56,10 +78,10 @@ class RecipeSuggestionRanker
             ->get();
 
         return $candidates
-            ->map(function (Recipe $recipe) use ($atRiskIds, $openWindows, $previousProtein, $date) {
+            ->map(function (Recipe $recipe) use ($atRiskIds, $atRisk, $previousProtein, $date) {
                 $clears = $recipe->ingredients
                     ->whereIn('id', $atRiskIds)
-                    ->map(fn ($i) => $openWindows[$i->id]->ingredient->name ?? $i->name)
+                    ->map(fn ($i) => $atRisk[$i->id] ?? $i->name)
                     ->values()
                     ->all();
 

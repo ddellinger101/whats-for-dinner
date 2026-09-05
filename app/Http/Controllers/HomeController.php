@@ -6,6 +6,7 @@ use App\Enums\GroceryItemStatus;
 use App\Enums\MealSlot;
 use App\Models\GroceryListItem;
 use App\Models\MealPlanEntry;
+use App\Services\InventoryService;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
@@ -39,6 +40,8 @@ class HomeController extends Controller
                 ->whereHas('components', fn ($q) => $q->where('is_primary', true))
                 ->count(),
             'groceryCount' => GroceryListItem::where('status', GroceryItemStatus::Needed->value)->count(),
+            // Surfaced here because a pantry nobody opens steers nothing.
+            'atRiskCount' => (new InventoryService)->atRiskIngredientIds($today)->count(),
         ]);
     }
 }

@@ -57,11 +57,12 @@
 
     <nav class="fixed inset-x-0 bottom-0 z-30 border-t border-ink-200 bg-white/95 backdrop-blur
                 pb-[env(safe-area-inset-bottom)]">
-        <div class="mx-auto grid max-w-3xl grid-cols-4">
+        <div class="mx-auto grid max-w-3xl grid-cols-5">
             @php
                 $tabs = [
                     ['route' => 'home',     'label' => 'Home',    'icon' => 'M3 10.5 12 3l9 7.5M5 9.5V21h14V9.5'],
                     ['route' => 'plan',     'label' => 'Plan',    'icon' => 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z'],
+                    ['route' => 'pantry',   'label' => 'Pantry',  'icon' => 'M5 3h14a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM4 12h16M10 7.5h1M10 16h1'],
                     ['route' => 'grocery',  'label' => 'Grocery', 'icon' => 'M3 6h18l-2 13H5L3 6zM3 6 2 3M8 10v5M16 10v5'],
                     ['route' => 'recipes',  'label' => 'Recipes', 'icon' => 'M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3V4zM8 8h7M8 12h7'],
                 ];

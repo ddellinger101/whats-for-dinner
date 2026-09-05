@@ -8,7 +8,9 @@ use App\Enums\ProteinType;
 use App\Enums\Rating;
 use App\Jobs\ImportRecipeDetails;
 use App\Models\HouseholdSetting;
+use App\Models\MealComponent;
 use App\Models\Recipe;
+use App\Services\InventoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -180,6 +182,19 @@ class RecipeController extends Controller
             'last_cooked_on' => Carbon::today(),
         ]);
 
-        return back()->with('status', "Marked {$recipe->name} as made.");
+        // Cooking it is the other moment the app can observe stock changing.
+        // Deducted at the size it was actually planned for, so what leaves the
+        // pantry matches what the grocery list bought for it.
+        $servings = MealComponent::query()
+            ->where('recipe_id', $recipe->id)
+            ->whereHas('mealPlanEntry', fn ($q) => $q->whereDate('date', '<=', Carbon::today()->toDateString()))
+            ->latest('created_at')
+            ->value('servings_needed');
+
+        $touched = (new InventoryService)->consumeForRecipe($recipe, $servings ?? $recipe->base_servings);
+
+        return back()->with('status', $touched > 0
+            ? "Marked {$recipe->name} as made, and took its ingredients out of the pantry."
+            : "Marked {$recipe->name} as made.");
     }
 }

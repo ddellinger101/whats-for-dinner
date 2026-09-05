@@ -54,13 +54,21 @@
         </a>
     </div>
 
-    <div class="mt-3 grid grid-cols-2 gap-3">
+    <div class="mt-3 grid grid-cols-3 gap-3">
         <a href="{{ route('grocery') }}"
            class="rounded-2xl border border-ink-200 bg-white p-4 shadow-sm transition active:scale-[.99]">
             <span class="block text-2xl font-semibold tracking-tight text-ink-900">{{ $groceryCount }}</span>
-            <span class="mt-0.5 block text-sm text-ink-600">
-                {{ Str::plural('item', $groceryCount) }} to buy
-            </span>
+            <span class="mt-0.5 block text-sm text-ink-600">to buy</span>
+        </a>
+
+        {{-- Highlighted only when there is something to act on: a permanently
+             coloured tile stops being a signal. --}}
+        <a href="{{ route('pantry') }}"
+           class="rounded-2xl border p-4 shadow-sm transition active:scale-[.99]
+                  {{ $atRiskCount > 0 ? 'border-leaf-500/60 bg-leaf-500/10' : 'border-ink-200 bg-white' }}">
+            <span class="block text-2xl font-semibold tracking-tight
+                         {{ $atRiskCount > 0 ? 'text-leaf-600' : 'text-ink-900' }}">{{ $atRiskCount }}</span>
+            <span class="mt-0.5 block text-sm text-ink-600">to use up</span>
         </a>
 
         <a href="{{ route('recipes') }}"

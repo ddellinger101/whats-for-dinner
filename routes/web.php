@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\GroceryController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MealPlanController;
+use App\Http\Controllers\PantryController;
 use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\RecipeIngredientController;
 use App\Http\Controllers\SimpleItemController;
@@ -57,6 +58,14 @@ Route::middleware('auth')->group(function () {
     Route::post('/items/{simpleItem}', [SimpleItemController::class, 'update'])->name('items.update');
     Route::post('/items/{simpleItem}/skip', [SimpleItemController::class, 'skip'])->name('items.skip');
     Route::delete('/items/{simpleItem}', [SimpleItemController::class, 'destroy'])->name('items.destroy');
+
+    // A rough picture of what is in, feeding the suggestion ranker's use-up
+    // boost alongside the week's use-by windows.
+    Route::get('/pantry', [PantryController::class, 'index'])->name('pantry');
+    Route::post('/pantry', [PantryController::class, 'store'])->name('pantry.store');
+    Route::post('/pantry/{flag}', [PantryController::class, 'update'])->name('pantry.update');
+    Route::post('/pantry/{flag}/gone', [PantryController::class, 'markGone'])->name('pantry.gone');
+    Route::post('/pantry/{flag}/restock', [PantryController::class, 'restock'])->name('pantry.restock');
 
     Route::get('/grocery', [GroceryController::class, 'index'])->name('grocery');
     Route::post('/grocery', [GroceryController::class, 'store'])->name('grocery.store');

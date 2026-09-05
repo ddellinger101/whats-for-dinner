@@ -10,6 +10,7 @@ use App\Models\Ingredient;
 use App\Models\InventoryFlag;
 use App\Models\RepeaterItem;
 use App\Services\GroceryListBuilder;
+use App\Services\InventoryService;
 use App\Support\AisleGuesser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,7 @@ class GroceryController extends Controller
     public function __construct(
         private readonly GroceryListBuilder $grocery = new GroceryListBuilder,
         private readonly AisleGuesser $aisles = new AisleGuesser,
+        private readonly InventoryService $inventory = new InventoryService,
     ) {}
 
     public function index(): View
@@ -134,6 +136,12 @@ class GroceryController extends Controller
         // Spec 4.6: buying a repeater is what restarts its clock.
         if ($nowPurchased && $item->source === GroceryItemSource::Repeater) {
             RepeaterItem::where('item_name', $item->item_name)->first()?->markPurchased(Carbon::today());
+        }
+
+        // Ticking something off is the app's one reliable observation that it
+        // came into the house, so it is what stocks the pantry.
+        if ($nowPurchased) {
+            $this->inventory->recordPurchase($item);
         }
 
         return back();
