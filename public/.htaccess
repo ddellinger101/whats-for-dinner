@@ -5,6 +5,16 @@
 
     RewriteEngine On
 
+    # Force HTTPS...
+    #
+    # Cloudways terminates TLS upstream and forwards to Apache over plain HTTP,
+    # so the visitor's real scheme is only visible in X-Forwarded-Proto. Both
+    # conditions are checked so this cannot loop if the app is ever served
+    # without that proxy in front.
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
@@ -15,12 +25,10 @@
 
     # Redirect Trailing Slashes If Not A Folder...
     #
-    # Cloudways terminates TLS at Varnish/nginx and forwards to Apache over
-    # plain HTTP, so Apache's own idea of the scheme is http. The stock rule
-    # emits a bare path, which Apache expands into an absolute http:// URL and
-    # silently drops visitors off HTTPS. Trusting proxy headers in PHP cannot
-    # fix this because the redirect happens before PHP runs, so the scheme is
-    # reconstructed here from X-Forwarded-Proto instead.
+    # The stock rule emits a bare path, which Apache expands into an absolute
+    # URL using its own scheme — http, behind the proxy — silently dropping
+    # visitors off HTTPS. Trusting proxy headers in PHP cannot fix this because
+    # the redirect happens before PHP runs, so the scheme is rebuilt here.
     #
     # The capturing condition is kept last in each block: %1 refers to the most
     # recently matched RewriteCond, so reordering these would break the path.
