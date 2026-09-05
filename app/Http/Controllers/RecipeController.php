@@ -11,6 +11,8 @@ use App\Models\HouseholdSetting;
 use App\Models\MealComponent;
 use App\Models\Recipe;
 use App\Services\InventoryService;
+use App\Services\MealPlanner;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -125,6 +127,38 @@ class RecipeController extends Controller
             // so setting either has to set the other.
             'is_keto' => in_array(CategoryTag::Keto->value, $tags, true),
         ];
+    }
+
+    /**
+     * Delete a recipe and everything that only made sense because of it.
+     *
+     * The recipe_id foreign key nulls on delete rather than cascading, so left
+     * alone this would strand meal components pointing at nothing — blank chips
+     * in the week's plan, with their groceries still on the list. Each planned
+     * use is removed properly instead, which also retracts what it added.
+     */
+    public function destroy(Recipe $recipe, MealPlanner $planner): RedirectResponse
+    {
+        $name = $recipe->name;
+
+        $planned = MealComponent::where('recipe_id', $recipe->id)->get();
+
+        foreach ($planned as $component) {
+            $planner->removeComponent($component);
+        }
+
+        if ($recipe->image_path) {
+            Storage::disk('public')->delete($recipe->image_path);
+        }
+
+        $recipe->ingredients()->detach();
+        $recipe->delete();
+
+        $note = $planned->isNotEmpty()
+            ? " It was removed from {$planned->count()} planned ".str('meal')->plural($planned->count()).'.'
+            : '';
+
+        return redirect()->route('recipes')->with('status', "Deleted {$name}.{$note}");
     }
 
     public function show(Recipe $recipe): View

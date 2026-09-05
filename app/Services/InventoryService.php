@@ -6,6 +6,7 @@ use App\Models\GroceryListItem;
 use App\Models\Ingredient;
 use App\Models\InventoryFlag;
 use App\Models\Recipe;
+use App\Services\IngredientResolver;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -24,23 +25,34 @@ class InventoryService
     /** How far ahead counts as "use this up" for the suggestion ranker. */
     public const AT_RISK_DAYS = 4;
 
+    public function __construct(
+        private readonly IngredientResolver $ingredients = new IngredientResolver,
+    ) {}
+
     /**
      * A bought grocery line entered the house.
      *
-     * Only lines tied to a known ingredient are recorded: a manual "Birthday
-     * candles" has nothing to match against a recipe, so tracking it would add
-     * clutter without ever affecting a suggestion.
+     * Lines added by hand carry no ingredient_id, and they are the majority of
+     * a real list — so resolving the name is not a nicety, it is the difference
+     * between the pantry filling up and staying permanently empty. Resolution
+     * goes through the shared resolver, so "half & half" typed into the grocery
+     * list is the same row a recipe refers to and can actually steer a
+     * suggestion.
      */
     public function recordPurchase(GroceryListItem $item, ?Carbon $on = null): ?InventoryFlag
     {
-        if (! $item->ingredient_id) {
-            return null;
-        }
-
-        $ingredient = $item->ingredient ?? Ingredient::find($item->ingredient_id);
+        $ingredient = $item->ingredient_id
+            ? ($item->ingredient ?? Ingredient::find($item->ingredient_id))
+            : $this->ingredients->resolve($item->item_name);
 
         if (! $ingredient) {
             return null;
+        }
+
+        // Link it back, so the line can be marked "already in stock" later and
+        // a re-buy updates the same pantry row.
+        if (! $item->ingredient_id) {
+            $item->update(['ingredient_id' => $ingredient->id]);
         }
 
         $on ??= Carbon::today();

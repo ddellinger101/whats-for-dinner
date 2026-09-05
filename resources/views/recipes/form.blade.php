@@ -129,4 +129,28 @@
             {{ $isNew ? 'Create recipe' : 'Save changes' }}
         </button>
     </form>
+
+    @unless ($isNew)
+        {{-- Behind a disclosure so deleting is a decision rather than a stray
+             tap next to Save. --}}
+        <details class="mt-4 rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
+            <summary class="cursor-pointer list-none text-sm font-medium text-ink-600 hover:text-red-600">
+                Delete this recipe
+            </summary>
+            <p class="mt-2 text-sm text-ink-600">
+                Removes {{ $recipe->name }} for good, along with its ingredients, its photo,
+                and any place it&rsquo;s planned this week. Groceries it added are taken back off
+                the list unless they&rsquo;ve already been ticked off.
+            </p>
+            <form method="POST" action="{{ route('recipes.destroy', $recipe) }}" class="mt-3">
+                @csrf
+                @method('DELETE')
+                <button type="submit"
+                        class="min-h-tap w-full rounded-xl border border-red-300 bg-white px-5 font-semibold
+                               text-red-600 transition hover:bg-red-50 sm:w-auto sm:px-8">
+                    Delete {{ $recipe->name }}
+                </button>
+            </form>
+        </details>
+    @endunless
 @endsection

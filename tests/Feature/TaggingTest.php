@@ -341,4 +341,65 @@ class TaggingTest extends TestCase
         $this->post(route('recipes.store'), ['name' => 'Sneaky'])->assertRedirect('/login');
         $this->assertSame(0, Recipe::count());
     }
+
+    // ------------------------------------------------------------- deleting
+
+    /**
+     * recipe_id nulls on delete rather than cascading, so a bare delete would
+     * strand meal components pointing at nothing — blank chips in the week with
+     * their groceries still on the list.
+     */
+    public function test_deleting_a_recipe_clears_it_from_the_plan_and_the_list(): void
+    {
+        $recipe = $this->recipeWith('Doomed Dish', ['Onion']);
+        (new MealPlanner)->setPrimaryRecipe(Carbon::parse('2026-09-09'), MealSlot::Dinner, $recipe);
+
+        $this->assertSame(1, \App\Models\MealComponent::count());
+        $this->assertSame(1, \App\Models\GroceryListItem::count());
+
+        $this->actingAs($this->user)
+            ->delete(route('recipes.destroy', $recipe))
+            ->assertRedirect(route('recipes'));
+
+        $this->assertNull(Recipe::find($recipe->id));
+        $this->assertSame(0, \App\Models\MealComponent::count());
+        $this->assertSame(0, \App\Models\GroceryListItem::count());
+        // The ingredient itself survives for other recipes.
+        $this->assertSame(1, Ingredient::where('name', 'Onion')->count());
+    }
+
+    /** Shopping already done is a decision, not stale data. */
+    public function test_deleting_a_recipe_leaves_bought_groceries_alone(): void
+    {
+        $recipe = $this->recipeWith('Doomed Dish', ['Onion']);
+        (new MealPlanner)->setPrimaryRecipe(Carbon::parse('2026-09-09'), MealSlot::Dinner, $recipe);
+
+        \App\Models\GroceryListItem::firstOrFail()->markPurchased();
+
+        $this->actingAs($this->user)->delete(route('recipes.destroy', $recipe));
+
+        $this->assertSame(1, \App\Models\GroceryListItem::count());
+    }
+
+    public function test_the_edit_screen_offers_deletion(): void
+    {
+        $recipe = $this->recipeWith('Doomed Dish');
+
+        $this->actingAs($this->user)->get(route('recipes.edit', $recipe))
+            ->assertOk()
+            ->assertSee('Delete this recipe');
+
+        // Not offered before the recipe exists.
+        $this->actingAs($this->user)->get(route('recipes.create'))
+            ->assertOk()
+            ->assertDontSee('Delete this recipe');
+    }
+
+    public function test_deleting_requires_authentication(): void
+    {
+        $recipe = $this->recipeWith('Safe Dish');
+
+        $this->delete(route('recipes.destroy', $recipe))->assertRedirect('/login');
+        $this->assertNotNull(Recipe::find($recipe->id));
+    }
 }

@@ -291,7 +291,7 @@ class GroceryAislesTest extends TestCase
 
         $this->actingAs($this->user)->get(route('grocery'))
             ->assertOk()
-            ->assertSee('grocery-suggestions')
+            ->assertSee('grocery-suggestion-data')
             ->assertSee('Rotisserie chicken')
             ->assertSee('Smoked paprika');
     }

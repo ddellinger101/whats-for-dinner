@@ -8,21 +8,31 @@
         @csrf
         <div class="flex gap-2">
             {{-- Autofill draws on everything ever on the list, plus every known
-                 ingredient, so last week's shopping never has to be retyped. --}}
-            <input type="text" name="item_name" required maxlength="120" list="grocery-suggestions"
-                   autocomplete="off" placeholder="Add an item&hellip;"
-                   class="min-h-tap min-w-0 flex-1 rounded-xl border border-ink-200 bg-white px-4 text-base
-                          outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200">
+                 ingredient, so last week's shopping never has to be retyped.
+
+                 Built by hand rather than with <datalist>: Safari on iOS does
+                 not render one, and this app is used on a phone in a kitchen,
+                 so the element that silently does nothing there is the wrong
+                 one to depend on. --}}
+            <div class="relative min-w-0 flex-1">
+                <input type="text" name="item_name" id="grocery-input" required maxlength="120"
+                       autocomplete="off" autocapitalize="words" spellcheck="false"
+                       role="combobox" aria-expanded="false" aria-autocomplete="list"
+                       aria-controls="grocery-suggest" placeholder="Add an item&hellip;"
+                       class="min-h-tap w-full rounded-xl border border-ink-200 bg-white px-4 text-base
+                              outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200">
+
+                <ul id="grocery-suggest" role="listbox" hidden
+                    class="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border
+                           border-ink-200 bg-white py-1 shadow-lg"></ul>
+            </div>
+
             <button type="submit"
                     class="min-h-tap shrink-0 rounded-xl bg-brand-600 px-5 font-semibold text-white shadow-sm
                            transition hover:bg-brand-700 active:scale-95">Add</button>
         </div>
 
-        <datalist id="grocery-suggestions">
-            @foreach ($suggestions as $suggestion)
-                <option value="{{ $suggestion }}"></option>
-            @endforeach
-        </datalist>
+        <script type="application/json" id="grocery-suggestion-data">@json($suggestions)</script>
 
         <details>
             <summary class="cursor-pointer list-none text-xs font-medium text-ink-400 hover:text-brand-600">
@@ -184,3 +194,96 @@
         </section>
     @endforeach
 @endsection
+
+@push('scripts')
+<script>
+(() => {
+    const input = document.getElementById('grocery-input');
+    const list = document.getElementById('grocery-suggest');
+    const dataEl = document.getElementById('grocery-suggestion-data');
+    if (!input || !list || !dataEl) return;
+
+    let names = [];
+    try { names = JSON.parse(dataEl.textContent) || []; } catch { return; }
+
+    let active = -1;
+    let shown = [];
+
+    const close = () => {
+        list.hidden = true;
+        list.innerHTML = '';
+        input.setAttribute('aria-expanded', 'false');
+        active = -1;
+        shown = [];
+    };
+
+    const choose = (value) => {
+        input.value = value;
+        close();
+        input.focus();
+    };
+
+    const highlight = () => {
+        [...list.children].forEach((li, i) => {
+            li.classList.toggle('bg-brand-50', i === active);
+            li.classList.toggle('text-brand-700', i === active);
+        });
+    };
+
+    const open = (query) => {
+        const q = query.trim().toLowerCase();
+        if (q.length < 1) return close();
+
+        // Names that start with what was typed come first: on a phone you type
+        // two letters and expect the obvious match at the top, not an
+        // alphabetical accident that happens to contain them.
+        const starts = [], contains = [];
+        for (const name of names) {
+            const lower = name.toLowerCase();
+            if (lower === q) continue;
+            if (lower.startsWith(q)) starts.push(name);
+            else if (lower.includes(q)) contains.push(name);
+            if (starts.length >= 8) break;
+        }
+
+        shown = [...starts, ...contains].slice(0, 8);
+        if (!shown.length) return close();
+
+        list.innerHTML = '';
+        shown.forEach((name) => {
+            const li = document.createElement('li');
+            li.role = 'option';
+            li.textContent = name;
+            li.className = 'cursor-pointer px-4 py-2.5 text-base text-ink-800';
+            // pointerdown, not click: blur would close the list first.
+            li.addEventListener('pointerdown', (e) => { e.preventDefault(); choose(name); });
+            list.appendChild(li);
+        });
+
+        list.hidden = false;
+        input.setAttribute('aria-expanded', 'true');
+        active = -1;
+    };
+
+    input.addEventListener('input', () => open(input.value));
+    input.addEventListener('focus', () => { if (input.value) open(input.value); });
+    input.addEventListener('blur', () => setTimeout(close, 120));
+
+    input.addEventListener('keydown', (e) => {
+        if (list.hidden) return;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            active = e.key === 'ArrowDown'
+                ? (active + 1) % shown.length
+                : (active <= 0 ? shown.length - 1 : active - 1);
+            highlight();
+        } else if (e.key === 'Enter' && active >= 0) {
+            e.preventDefault();
+            choose(shown[active]);
+        } else if (e.key === 'Escape') {
+            close();
+        }
+    });
+})();
+</script>
+@endpush

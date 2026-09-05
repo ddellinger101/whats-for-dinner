@@ -104,14 +104,96 @@ class PantryTest extends TestCase
         $this->assertSame('2026-09-12', $flag->expires_on->toDateString());
     }
 
-    /** A manual line has no ingredient to match, so it is not tracked. */
-    public function test_an_item_with_no_ingredient_is_not_stocked(): void
+    /**
+     * Hand-typed lines carry no ingredient_id and are the majority of a real
+     * list, so they have to stock the pantry too — otherwise it stays
+     * permanently empty for anyone who types their shopping.
+     */
+    public function test_a_hand_typed_item_still_stocks_the_pantry(): void
     {
-        $item = (new GroceryListBuilder)->addManual('Birthday candles');
+        $item = (new GroceryListBuilder)->addManual('Half & Half');
+
+        $this->actingAs($this->user)->post(route('grocery.toggle', $item))->assertRedirect();
+
+        $flag = InventoryFlag::firstOrFail();
+        $this->assertSame('Half & Half', $flag->ingredient->name);
+        $this->assertTrue($flag->has_stock);
+
+        // The line is linked back, so re-buying updates the same pantry row
+        // rather than creating a second one.
+        $this->assertSame($flag->ingredient_id, $item->fresh()->ingredient_id);
+    }
+
+    /** Resolution is shared, so a typed item matches what recipes refer to. */
+    public function test_a_typed_item_matches_the_ingredient_recipes_use(): void
+    {
+        $onion = $this->ingredient('Onion', IngredientCategory::Produce, 6);
+        $item = (new GroceryListBuilder)->addManual('onions');
 
         $this->actingAs($this->user)->post(route('grocery.toggle', $item));
 
+        $this->assertSame($onion->id, InventoryFlag::firstOrFail()->ingredient_id);
+        $this->assertSame(1, InventoryFlag::count());
+    }
+
+    /** Shopping bought before the pantry existed can be read in afterwards. */
+    public function test_the_backfill_reads_in_already_purchased_shopping(): void
+    {
+        $bread = (new GroceryListBuilder)->addManual('Bread');
+        $sugar = (new GroceryListBuilder)->addManual('Sugar');
+        // Marked bought directly, bypassing the controller hook.
+        $bread->update(['status' => 'purchased']);
+        $sugar->update(['status' => 'purchased']);
+
         $this->assertSame(0, InventoryFlag::count());
+
+        $this->artisan('pantry:backfill')->assertSuccessful();
+
+        $this->assertSame(2, InventoryFlag::count());
+        $this->assertEqualsWithDelta(
+            2,
+            InventoryFlag::whereHas('ingredient', fn ($q) => $q->whereIn('name', ['Bread', 'Sugar']))->count(),
+            0,
+        );
+    }
+
+    /** Re-running must not keep stacking quantity onto what is already counted. */
+    public function test_the_backfill_does_not_double_count(): void
+    {
+        $bread = (new GroceryListBuilder)->addManual('Bread');
+        $bread->update(['status' => 'purchased']);
+
+        $this->artisan('pantry:backfill')->assertSuccessful();
+        $this->artisan('pantry:backfill')->assertSuccessful();
+
+        $this->assertSame(1, InventoryFlag::count());
+    }
+
+    /** Cleared lines are still shopping that happened. */
+    public function test_the_backfill_can_read_cleared_lines(): void
+    {
+        $bread = (new GroceryListBuilder)->addManual('Bread');
+        $bread->update(['status' => 'purchased']);
+        $bread->delete();
+
+        $this->artisan('pantry:backfill')->assertSuccessful();
+        $this->assertSame(0, InventoryFlag::count());
+
+        $this->artisan('pantry:backfill --include-cleared')->assertSuccessful();
+        $this->assertSame(1, InventoryFlag::count());
+    }
+
+    /** The suggestion data has to reach the page for the autofill to work. */
+    public function test_the_autofill_data_is_embedded_for_the_client(): void
+    {
+        (new GroceryListBuilder)->addManual('Rotisserie chicken');
+
+        $this->actingAs($this->user)->get(route('grocery'))
+            ->assertOk()
+            ->assertSee('grocery-suggestion-data')
+            ->assertSee('Rotisserie chicken')
+            // Built by hand because iOS Safari does not render a datalist.
+            ->assertDontSee('<datalist', false);
     }
 
     /** Buying more adds to what is there and pushes the date out. */
