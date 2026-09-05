@@ -298,6 +298,36 @@ class RecipeScrapingTest extends TestCase
         $this->assertTrue($recipe->fresh()->ingredients->contains('id', $existing->id));
     }
 
+    /**
+     * Singular and plural must resolve to one ingredient, or a meal using
+     * "onions" would not count as clearing the "onion" about to go off.
+     */
+    public function test_singular_and_plural_resolve_to_one_ingredient(): void
+    {
+        Storage::fake('public');
+        Http::fake([
+            'example.com/onions' => Http::response(<<<'HTML'
+            <html><head><script type="application/ld+json">
+            {"@type":"Recipe","name":"Onion Soup","recipeYield":"4",
+             "recipeIngredient":["3 onions, sliced","1 tbsp butter"]}
+            </script></head></html>
+            HTML),
+            '*' => Http::response('bytes', 200, ['Content-Type' => 'image/jpeg']),
+        ]);
+
+        $onion = Ingredient::create([
+            'name' => 'Onion',
+            'category' => IngredientCategory::Produce,
+            'shelf_life_days' => 6,
+        ]);
+
+        $recipe = Recipe::create(['name' => 'Onion Soup', 'recipe_links' => ['https://example.com/onions']]);
+        (new RecipeDetailImporter)->import($recipe);
+
+        $this->assertSame(1, Ingredient::whereRaw('LOWER(name) in (?, ?)', ['onion', 'onions'])->count());
+        $this->assertTrue($recipe->fresh()->ingredients->contains('id', $onion->id));
+    }
+
     // ------------------------------------------------------------ wiring
 
     /** Spec 4.7: first selection as a main triggers the import. */

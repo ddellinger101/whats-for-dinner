@@ -107,7 +107,24 @@ class RecipeDetailImporter
     {
         $name = Str::of($name)->squish()->limit(80, '')->value();
 
-        $existing = Ingredient::whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first();
+        // One recipe writes "1 onion", the next writes "2 onions". Left alone
+        // those become two ingredients, and since use-by windows and use-up
+        // matching are keyed per ingredient (spec 4.1, 4.2.3), a meal using
+        // "onions" would not count as clearing the "onion" going off in the
+        // fridge. Match every form; keep whichever spelling arrived first.
+        $candidates = array_unique([
+            mb_strtolower($name),
+            mb_strtolower(Str::singular($name)),
+            mb_strtolower(Str::plural($name)),
+        ]);
+
+        $existing = Ingredient::query()
+            ->where(function ($query) use ($candidates) {
+                foreach ($candidates as $candidate) {
+                    $query->orWhereRaw('LOWER(name) = ?', [$candidate]);
+                }
+            })
+            ->first();
 
         if ($existing) {
             return $existing;
