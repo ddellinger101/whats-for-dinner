@@ -46,7 +46,7 @@ class Recipe extends Model
             'created_from_import' => 'boolean',
             'base_servings' => 'integer',
             'times_made' => 'integer',
-            'last_cooked_on' => 'date',
+            'last_cooked_on' => \App\Casts\DateOnly::class,
         ];
     }
 

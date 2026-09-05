@@ -24,7 +24,7 @@ class GroceryListItem extends Model
         return [
             'source' => GroceryItemSource::class,
             'status' => GroceryItemStatus::class,
-            'added_date' => 'date',
+            'added_date' => \App\Casts\DateOnly::class,
             'quantity' => 'decimal:3',
         ];
     }

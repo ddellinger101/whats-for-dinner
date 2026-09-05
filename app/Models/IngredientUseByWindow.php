@@ -18,9 +18,9 @@ class IngredientUseByWindow extends Model
     protected function casts(): array
     {
         return [
-            'week_start_date' => 'date',
-            'purchase_date' => 'date',
-            'expires_on' => 'date',
+            'week_start_date' => \App\Casts\DateOnly::class,
+            'purchase_date' => \App\Casts\DateOnly::class,
+            'expires_on' => \App\Casts\DateOnly::class,
         ];
     }
 

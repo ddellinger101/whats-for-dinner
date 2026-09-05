@@ -18,8 +18,8 @@ class RepeaterItem extends Model
     {
         return [
             'frequency_days' => 'integer',
-            'last_purchased_date' => 'date',
-            'next_due_date' => 'date',
+            'last_purchased_date' => \App\Casts\DateOnly::class,
+            'next_due_date' => \App\Casts\DateOnly::class,
         ];
     }
 

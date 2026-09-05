@@ -17,7 +17,7 @@ class MealPlanEntry extends Model
     protected function casts(): array
     {
         return [
-            'date' => 'date',
+            'date' => \App\Casts\DateOnly::class,
             'slot' => MealSlot::class,
             'household_size_used' => 'integer',
             'servings_manually_set' => 'boolean',
