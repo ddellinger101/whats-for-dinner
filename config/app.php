@@ -17,6 +17,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Legal Page Details
+    |--------------------------------------------------------------------------
+    |
+    | Shown on the public privacy policy and terms pages, which Google's OAuth
+    | verification requires to be reachable on the app's own domain. The contact
+    | address is published on those pages, so it is deliberately configurable.
+    |
+    */
+
+    'contact_email' => env('APP_CONTACT_EMAIL', 'dustindellinger@gmail.com'),
+
+    'legal_updated' => env('APP_LEGAL_UPDATED', 'September 5, 2026'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |

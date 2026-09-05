@@ -3,7 +3,44 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
+/*
+ * Design system for What's For Dinner (spec 2): mobile-first, touch-first, with
+ * a real spacing and type scale rather than default form styling.
+ *
+ * The palette is taken from the leaf-and-cutlery logo: a green ramp running
+ * from the deep emerald at the base of the leaf to the yellow-green highlight
+ * at its tip, with that highlight kept separate as an accent.
+ */
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Leaf green — primary */
+    --color-brand-50: #f1f8f0;
+    --color-brand-100: #dcefdb;
+    --color-brand-200: #b9dfb6;
+    --color-brand-300: #90cc8b;
+    --color-brand-400: #68b866;
+    --color-brand-500: #45a34c;
+    --color-brand-600: #33883c;
+    --color-brand-700: #296c31;
+    --color-brand-800: #235628;
+    --color-brand-900: #1d4622;
+
+    /* Leaf tip — accent, used sparingly for highlights and active states */
+    --color-leaf-400: #a5d452;
+    --color-leaf-500: #8cc63f;
+    --color-leaf-600: #74a832;
+
+    /* Neutrals warmed very slightly toward green so they sit with the brand */
+    --color-ink-50: #f8faf8;
+    --color-ink-100: #eef1ee;
+    --color-ink-200: #dfe4df;
+    --color-ink-400: #9aa39a;
+    --color-ink-600: #5b655c;
+    --color-ink-800: #2c332d;
+    --color-ink-900: #1a1f1b;
+
+    /* Touch targets: 44px is the minimum comfortable tap area on a phone. */
+    --spacing-tap: 2.75rem;
 }

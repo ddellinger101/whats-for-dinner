@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\CategoryTag;
+use App\Enums\ImageStatus;
 use App\Enums\IngredientsStatus;
 use App\Enums\MealType;
 use App\Enums\ProteinType;
@@ -23,6 +24,7 @@ class Recipe extends Model
         'name', 'protein_type', 'meal_type', 'category_tags', 'is_keto',
         'recipe_links', 'base_servings', 'rating', 'times_made',
         'ingredients_status', 'notes', 'created_from_import', 'last_cooked_on',
+        'image_path', 'image_source_url', 'image_status',
     ];
 
     protected $attributes = [
@@ -39,6 +41,7 @@ class Recipe extends Model
             'recipe_links' => 'array',
             'rating' => Rating::class,
             'ingredients_status' => IngredientsStatus::class,
+            'image_status' => ImageStatus::class,
             'is_keto' => 'boolean',
             'created_from_import' => 'boolean',
             'base_servings' => 'integer',
@@ -89,5 +92,24 @@ class Recipe extends Model
     public function servingMultiplierFor(int $householdSize): int
     {
         return max(1, (int) ceil($householdSize / max(1, $this->base_servings)));
+    }
+
+    public function hasImage(): bool
+    {
+        return filled($this->image_path);
+    }
+
+    public function imageUrl(): ?string
+    {
+        return $this->hasImage() ? asset('storage/'.$this->image_path) : null;
+    }
+
+    /**
+     * A photo taken in the kitchen outranks anything scraped later, so a
+     * re-import never overwrites the user's own picture.
+     */
+    public function canAcceptScrapedImage(): bool
+    {
+        return ! $this->image_status->isUserProvided();
     }
 }
