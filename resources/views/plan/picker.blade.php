@@ -110,7 +110,11 @@
         </form>
 
         @if ($simpleItems->isNotEmpty())
-            <h2 class="mt-5 text-sm font-semibold text-ink-900">Saved items</h2>
+            <div class="mt-5 flex items-baseline gap-2">
+                <h2 class="text-sm font-semibold text-ink-900">Saved items</h2>
+                <a href="{{ route('items') }}"
+                   class="ml-auto text-xs font-medium text-brand-600 hover:text-brand-700">Manage</a>
+            </div>
             <ul class="mt-2 flex flex-wrap gap-2">
                 @foreach ($simpleItems as $item)
                     <li>

@@ -6,6 +6,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MealPlanController;
 use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\RecipeIngredientController;
+use App\Http\Controllers\SimpleItemController;
 use App\Http\Controllers\TonightController;
 use Illuminate\Support\Facades\Route;
 
@@ -49,6 +50,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/plan/{date}/{slot}/side', [MealPlanController::class, 'addSide'])->name('plan.side');
     Route::post('/plan/{date}/{slot}/servings', [MealPlanController::class, 'setServings'])->name('plan.servings');
     Route::delete('/plan/component/{component}', [MealPlanController::class, 'removeComponent'])->name('plan.component.remove');
+
+    // Spec 4.5: the simple-item library and its one-time breakdown prompt.
+    Route::get('/items', [SimpleItemController::class, 'index'])->name('items');
+    Route::get('/items/{simpleItem}/edit', [SimpleItemController::class, 'edit'])->name('items.edit');
+    Route::post('/items/{simpleItem}', [SimpleItemController::class, 'update'])->name('items.update');
+    Route::post('/items/{simpleItem}/skip', [SimpleItemController::class, 'skip'])->name('items.skip');
+    Route::delete('/items/{simpleItem}', [SimpleItemController::class, 'destroy'])->name('items.destroy');
 
     Route::get('/grocery', [GroceryController::class, 'index'])->name('grocery');
     Route::post('/grocery', [GroceryController::class, 'store'])->name('grocery.store');

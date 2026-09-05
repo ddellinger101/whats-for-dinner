@@ -137,6 +137,13 @@ class MealPlanController extends Controller
 
         $this->planner->addSide($this->parseDate($date), MealSlot::from($slot), $thing);
 
+        // Spec 4.5: the first time a simple item is created, ask what it breaks
+        // down into. "Turkey Sandwich" on a grocery list is useless in a shop;
+        // turkey, bread, cheese and mayo is a shop. Asked once, reused forever.
+        if ($thing instanceof SimpleItem && ! $thing->breakdown_prompted) {
+            return redirect()->route('items.edit', ['simpleItem' => $thing, 'new' => 1]);
+        }
+
         return redirect()->route('plan', ['start' => $this->parseDate($date)->startOfWeek(Carbon::SUNDAY)->toDateString()])
             ->with('status', "{$thing->name} added.");
     }
