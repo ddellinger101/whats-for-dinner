@@ -135,9 +135,41 @@ class RecipeScrapingTest extends TestCase
         $this->assertSame(IngredientCategory::Produce, $guesser->guess('Kale'));
         $this->assertSame(IngredientCategory::PantryDry, $guesser->guess('Graham crackers'));
         $this->assertSame(IngredientCategory::Dairy, $guesser->guess('Goat cheese'));
+        // "tea" inside "teaspoon" filed a measurement of salt under drinks.
+        $this->assertSame(IngredientCategory::PantryDry, $guesser->guess('Teaspoon salt'));
 
         // Deliberate stems still work.
         $this->assertSame(IngredientCategory::Produce, $guesser->guess('Strawberries'));
+    }
+
+    /** Anchoring both ends must not stop ordinary plurals matching. */
+    public function test_plurals_still_match(): void
+    {
+        $guesser = new IngredientCategoryGuesser;
+
+        $this->assertSame(IngredientCategory::Produce, $guesser->guess('Carrots'));
+        $this->assertSame(IngredientCategory::Dairy, $guesser->guess('Eggs'));
+        $this->assertSame(IngredientCategory::Bakery, $guesser->guess('Sandwich buns'));
+        $this->assertSame(IngredientCategory::Bakery, $guesser->guess('Small flour tortillas'));
+    }
+
+    /**
+     * Things you cook with are not things you pour, and a shelf-stable form is
+     * not its fresh namesake. Both were got wrong on the first pass.
+     */
+    public function test_cooking_ingredients_are_not_mistaken_for_drinks(): void
+    {
+        $guesser = new IngredientCategoryGuesser;
+
+        $this->assertSame(IngredientCategory::Condiment, $guesser->guess('Red wine vinegar'));
+        $this->assertSame(IngredientCategory::Condiment, $guesser->guess('White cooking wine'));
+        $this->assertSame(IngredientCategory::Produce, $guesser->guess('Lemon juice'));
+        $this->assertSame(IngredientCategory::PantryDry, $guesser->guess('Sundried tomatoes'));
+        $this->assertSame(IngredientCategory::PantryDry, $guesser->guess('Panko breadcrumbs'));
+
+        // The actual drinks still read as drinks.
+        $this->assertSame(IngredientCategory::Beverage, $guesser->guess('Orange juice'));
+        $this->assertSame(IngredientCategory::Beverage, $guesser->guess('Red wine'));
     }
 
     /**

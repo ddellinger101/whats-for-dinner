@@ -36,33 +36,40 @@ class IngredientCategoryGuesser
             // would otherwise inherit produce's six-day shelf life and start
             // generating use-by windows for a jar that keeps for a year.
             [IngredientCategory::PantryDry, [
-                'powder', 'powdered', 'dried', 'seasoning', 'extract', 'flakes',
-                'granulated', 'bouillon', 'ground cinnamon', 'ground cumin',
+                'powder', 'powdered', 'dried', 'sundried', 'sun-dried', 'seasoning',
+                'extract', 'flakes', 'granulated', 'bouillon', 'teaspoon',
+                'tablespoon', 'ground cinnamon', 'ground cumin',
             ]],
 
-            // Before produce, or beer and cider inherit six days and start
-            // showing up as something to use before it goes off.
-            [IngredientCategory::Beverage, [
-                'beer', 'wine', 'cider', 'soda', 'cola', 'juice', 'seltzer',
-                'sparkling water', 'coffee', 'tea', 'lemonade', 'kombucha',
-                'ale', 'lager', 'ipa', 'bourbon', 'whiskey', 'whisky', 'vodka',
-                'gin', 'tequila', 'rum', 'champagne', 'prosecco', 'pilsner',
-                'stout', 'yuengling', 'la croix',
-            ]],
-
-            // Before the pantry, or bread claims a year of shelf life.
-            [IngredientCategory::Bakery, [
-                'bread', 'bun', 'bagel', 'baguette', 'tortilla', 'pita', 'naan',
-                'croissant', 'muffin', 'donut', 'doughnut', 'crescent', 'brioche',
-                'ciabatta', 'sourdough', 'hoagie', 'sub roll', 'dinner roll',
-            ]],
-
+            // Condiments before drinks: "red wine vinegar" and "cooking wine"
+            // are things you cook with, not things you pour.
             [IngredientCategory::Condiment, [
-                'ketchup', 'mustard', 'mayo', 'mayonnaise', 'soy sauce', 'hot sauce',
+                'vinegar', 'cooking wine', 'rice wine', 'ketchup', 'mustard',
+                'mayo', 'mayonnaise', 'soy sauce', 'hot sauce',
                 'sriracha', 'vinegar', 'worcestershire', 'bbq sauce', 'barbecue sauce',
                 'ranch', 'dressing', 'relish', 'horseradish', 'fish sauce', 'sesame oil',
                 'olive oil', 'vegetable oil', 'canola oil', 'avocado oil', 'cooking spray',
                 'honey', 'maple syrup', 'peanut butter', 'jam', 'jelly', 'pesto',
+            ]],
+
+            // After condiments, so vinegar and cooking wine are already claimed.
+            // Before produce, or beer and cider inherit six days and start
+            // asking to be drunk before they go off. Fruit juices are named in
+            // full: a bare "juice" swallowed "lemon juice", which is an
+            // ingredient rather than something you pour a glass of.
+            [IngredientCategory::Beverage, [
+                'beer', 'wine', 'cider', 'soda', 'cola', 'seltzer', 'sparkling water',
+                'coffee', 'tea', 'lemonade', 'kombucha', 'ale', 'lager', 'ipa',
+                'bourbon', 'whiskey', 'whisky', 'vodka', 'gin', 'tequila', 'rum',
+                'champagne', 'prosecco', 'pilsner', 'stout', 'yuengling', 'la croix',
+                'orange juice', 'apple juice', 'fruit juice', 'juice box',
+            ]],
+
+            // Before the pantry, or bread claims a year of shelf life.
+            [IngredientCategory::Bakery, [
+                'bread', 'bun*', 'bagel', 'baguette', 'tortilla*', 'pita', 'naan',
+                'croissant', 'muffin', 'donut', 'doughnut', 'crescent', 'brioche',
+                'ciabatta', 'sourdough', 'hoagie', 'sub roll', 'dinner roll',
             ]],
 
             // Before protein: "chicken broth" is a shelf-stable carton, not raw
@@ -149,15 +156,22 @@ class IngredientCategoryGuesser
     }
 
     /**
-     * Word-start matching rather than a plain substring.
+     * Whole-word matching, with stems marked explicitly by a trailing asterisk.
      *
-     * A bare str_contains has a whole family of traps in it: "tea" sits inside
-     * "steak", "ale" inside "kale", "ham" inside "graham", "oat" inside "goat".
-     * Anchoring to a word boundary at the front kills all of them at once while
-     * still allowing deliberate stems — "berr" continues to match "berries".
+     * A plain substring has a family of traps in it — "ale" inside "kale",
+     * "ham" inside "graham", "oat" inside "goat" — but anchoring only the front
+     * is not enough either: "tea" still matches "teaspoon", which filed a
+     * measurement of salt under drinks. Both ends are anchored by default, and
+     * anything genuinely meant as a prefix says so: "berr*" matches "berries".
      */
     private function matches(string $name, string $keyword): bool
     {
-        return (bool) preg_match('/\b'.preg_quote($keyword, '/').'/u', $name);
+        if (str_ends_with($keyword, '*')) {
+            return (bool) preg_match('/\b'.preg_quote(rtrim($keyword, '*'), '/').'/u', $name);
+        }
+
+        // A trailing plural is allowed, or anchoring both ends would quietly
+        // break most of the table: "carrot" would stop matching "carrots".
+        return (bool) preg_match('/\b'.preg_quote($keyword, '/').'(?:s|es)?\b/u', $name);
     }
 }
