@@ -5,6 +5,7 @@ use App\Http\Controllers\GroceryController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MealPlanController;
 use App\Http\Controllers\RecipeController;
+use App\Http\Controllers\RecipeIngredientController;
 use App\Http\Controllers\TonightController;
 use Illuminate\Support\Facades\Route;
 
@@ -61,4 +62,18 @@ Route::middleware('auth')->group(function () {
     Route::post('/recipes/{recipe}/rate', [RecipeController::class, 'rate'])->name('recipes.rate');
     Route::post('/recipes/{recipe}/cooked', [RecipeController::class, 'markCooked'])->name('recipes.cooked');
     Route::post('/recipes/{recipe}/import', [RecipeController::class, 'importDetails'])->name('recipes.import');
+
+    // Spec 4.7's manual fallback, plus the photo capture that shares the screen.
+    Route::post('/recipes/{recipe}/ingredients', [RecipeIngredientController::class, 'store'])
+        ->name('recipes.ingredients.store');
+    Route::post('/recipes/{recipe}/ingredients/bulk', [RecipeIngredientController::class, 'storeBulk'])
+        ->name('recipes.ingredients.bulk');
+    Route::delete('/recipes/{recipe}/ingredients/{ingredient}', [RecipeIngredientController::class, 'destroy'])
+        ->name('recipes.ingredients.destroy');
+    Route::post('/recipes/{recipe}/base-servings', [RecipeIngredientController::class, 'updateServings'])
+        ->name('recipes.servings');
+    Route::post('/recipes/{recipe}/photo', [RecipeIngredientController::class, 'storePhoto'])
+        ->name('recipes.photo.store');
+    Route::delete('/recipes/{recipe}/photo', [RecipeIngredientController::class, 'destroyPhoto'])
+        ->name('recipes.photo.destroy');
 });

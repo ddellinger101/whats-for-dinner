@@ -11,9 +11,27 @@
         All recipes
     </a>
 
+    @if ($errors->any())
+        <p class="mt-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{{ $errors->first() }}</p>
+    @endif
+
     <article class="mt-2 overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
         @if ($recipe->hasImage())
-            <img src="{{ $recipe->imageUrl() }}" alt="" class="h-44 w-full object-cover sm:h-56">
+            <div class="relative">
+                <img src="{{ $recipe->imageUrl() }}" alt="" class="h-44 w-full object-cover sm:h-56">
+                <form method="POST" action="{{ route('recipes.photo.destroy', $recipe) }}"
+                      class="absolute right-2 top-2">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit"
+                            class="grid size-9 place-items-center rounded-lg bg-black/45 text-white backdrop-blur
+                                   transition hover:bg-black/65"
+                            aria-label="Remove photo">
+                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                    </button>
+                </form>
+            </div>
         @endif
 
         <div class="p-5">
@@ -28,7 +46,7 @@
                 @endif
             </p>
 
-            @if ($recipe->category_tags->isNotEmpty() || $recipe->is_keto)
+            @if ($recipe->category_tags->isNotEmpty())
                 <div class="mt-3 flex flex-wrap gap-1.5">
                     @foreach ($recipe->category_tags as $tag)
                         <span class="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700">
@@ -68,30 +86,48 @@
                 </a>
             @endforeach
 
+            {{-- ------------------------------------------------ ingredients --}}
+            <div class="mt-5 flex items-baseline gap-2">
+                <h2 class="text-sm font-semibold text-ink-900">Ingredients</h2>
+                <span class="text-xs text-ink-400">for {{ $recipe->base_servings }} servings</span>
+            </div>
+
             @if ($recipe->ingredients->isNotEmpty())
-                <h2 class="mt-5 text-sm font-semibold text-ink-900">Ingredients</h2>
                 <ul class="mt-2 divide-y divide-ink-100 border-y border-ink-100">
                     @foreach ($recipe->ingredients as $ingredient)
-                        <li class="flex items-baseline gap-3 py-2.5 text-sm">
-                            <span class="w-24 shrink-0 font-medium text-ink-900">
-                                @if ($ingredient->pivot->quantity_per_serving !== null)
-                                    {{ rtrim(rtrim(number_format($ingredient->pivot->quantity_per_serving * $recipe->base_servings, 2), '0'), '.') }}
-                                    {{ $ingredient->pivot->unit ?? $ingredient->default_unit }}
-                                @else
-                                    &mdash;
-                                @endif
-                            </span>
+                        @php
+                            $total = $ingredient->pivot->quantity_per_serving === null
+                                ? null
+                                : trim(rtrim(rtrim(number_format(
+                                    $ingredient->pivot->quantity_per_serving * $recipe->base_servings, 2), '0'), '.')
+                                    .' '.($ingredient->pivot->unit ?? $ingredient->default_unit));
+                        @endphp
+                        <li class="flex items-center gap-3 py-2 text-sm">
+                            <span class="w-24 shrink-0 font-medium text-ink-900">{{ $total ?? '—' }}</span>
                             <span class="min-w-0 flex-1 text-ink-800">{{ $ingredient->name }}</span>
                             @if ($ingredient->hasStock())
                                 <span class="shrink-0 rounded bg-ink-100 px-1.5 py-0.5 text-[11px] font-medium text-ink-600">
                                     in stock
                                 </span>
                             @endif
+                            <form method="POST"
+                                  action="{{ route('recipes.ingredients.destroy', [$recipe, $ingredient]) }}"
+                                  class="shrink-0">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit"
+                                        class="grid size-9 place-items-center rounded-lg text-ink-300
+                                               transition hover:bg-ink-100 hover:text-red-600"
+                                        aria-label="Remove {{ $ingredient->name }}">
+                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                         stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                                </button>
+                            </form>
                         </li>
                     @endforeach
                 </ul>
             @else
-                <div class="mt-5 rounded-xl bg-ink-100 px-4 py-3">
+                <div class="mt-2 rounded-xl bg-ink-100 px-4 py-3">
                     <p class="text-sm text-ink-600">No ingredients recorded yet.</p>
                     @if (($recipe->recipe_links ?? []) !== [])
                         <form method="POST" action="{{ route('recipes.import', $recipe) }}" class="mt-2">
@@ -99,18 +135,90 @@
                             <button type="submit"
                                     class="min-h-tap rounded-xl border border-ink-300 bg-white px-4 text-sm
                                            font-medium text-ink-800 transition hover:border-brand-400">
-                                Fetch from the recipe link
+                                Try fetching from the link
                             </button>
                         </form>
-                    @else
-                        <p class="mt-1 text-sm text-ink-600">
-                            There&rsquo;s no link to import from, so these need adding by hand.
-                        </p>
                     @endif
                 </div>
             @endif
 
-            {{-- Spec 4.4: just_ok is the rating that wants a note. --}}
+            {{-- Add one at a time. Amounts are what the whole recipe needs,
+                 because that is how the page being copied from writes them. --}}
+            <form method="POST" action="{{ route('recipes.ingredients.store', $recipe) }}"
+                  class="mt-3 flex flex-wrap gap-2">
+                @csrf
+                <input type="text" name="quantity" inputmode="decimal" placeholder="2"
+                       class="min-h-tap w-16 rounded-xl border border-ink-200 px-3 text-base outline-none
+                              focus:border-brand-500 focus:ring-2 focus:ring-brand-200">
+                <input type="text" name="unit" placeholder="cups" maxlength="20"
+                       class="min-h-tap w-24 rounded-xl border border-ink-200 px-3 text-base outline-none
+                              focus:border-brand-500 focus:ring-2 focus:ring-brand-200">
+                <input type="text" name="name" required placeholder="Ingredient" maxlength="120"
+                       class="min-h-tap min-w-0 flex-1 rounded-xl border border-ink-200 px-3 text-base outline-none
+                              focus:border-brand-500 focus:ring-2 focus:ring-brand-200">
+                <button type="submit"
+                        class="min-h-tap shrink-0 rounded-xl bg-brand-600 px-4 font-semibold text-white
+                               transition hover:bg-brand-700">Add</button>
+            </form>
+
+            {{-- The bulk path matters: over half the archive has no usable link,
+                 and typing 15 ingredients one at a time is nobody's evening. --}}
+            <details class="mt-3">
+                <summary class="cursor-pointer list-none text-sm font-medium text-brand-600 hover:text-brand-700">
+                    Paste a whole list instead
+                </summary>
+                <form method="POST" action="{{ route('recipes.ingredients.bulk', $recipe) }}" class="mt-2">
+                    @csrf
+                    <textarea name="lines" rows="6" required
+                              placeholder="1 lb ground beef&#10;2 cups beef broth&#10;1 onion, diced&#10;1/2 tsp salt"
+                              class="w-full rounded-xl border border-ink-200 px-3.5 py-2.5 font-mono text-sm
+                                     outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"></textarea>
+                    <p class="mt-1 text-xs text-ink-400">
+                        One per line. Amounts, units and prep notes are worked out for you.
+                    </p>
+                    <button type="submit"
+                            class="mt-2 min-h-tap rounded-xl bg-brand-600 px-5 font-semibold text-white
+                                   transition hover:bg-brand-700">
+                        Add all
+                    </button>
+                </form>
+            </details>
+
+            {{-- ------------------------------------------------ yield + photo --}}
+            <div class="mt-5 grid gap-3 border-t border-ink-100 pt-4 sm:grid-cols-2">
+                <form method="POST" action="{{ route('recipes.servings', $recipe) }}">
+                    @csrf
+                    <label for="base_servings" class="block text-sm font-medium text-ink-800">Recipe serves</label>
+                    <div class="mt-1.5 flex gap-2">
+                        <input id="base_servings" type="number" name="base_servings" min="1" max="60"
+                               value="{{ $recipe->base_servings }}"
+                               class="min-h-tap w-20 rounded-xl border border-ink-200 px-3 text-base outline-none
+                                      focus:border-brand-500 focus:ring-2 focus:ring-brand-200">
+                        <button type="submit"
+                                class="min-h-tap rounded-xl border border-ink-200 bg-white px-4 text-sm font-medium
+                                       text-ink-800 transition hover:border-brand-400">Save</button>
+                    </div>
+                    <p class="mt-1 text-xs text-ink-400">Amounts stay the same; the per-serving split adjusts.</p>
+                </form>
+
+                <form method="POST" action="{{ route('recipes.photo.store', $recipe) }}"
+                      enctype="multipart/form-data">
+                    @csrf
+                    <label for="photo" class="block text-sm font-medium text-ink-800">
+                        {{ $recipe->hasImage() ? 'Replace photo' : 'Add a photo' }}
+                    </label>
+                    {{-- capture hints a phone straight to its camera, which is the
+                         point: photograph the dish while it is on the table. --}}
+                    <input id="photo" type="file" name="photo" accept="image/*" capture="environment" required
+                           onchange="this.form.requestSubmit()"
+                           class="mt-1.5 block w-full text-sm text-ink-600
+                                  file:mr-3 file:min-h-tap file:rounded-xl file:border-0 file:bg-brand-600
+                                  file:px-4 file:font-semibold file:text-white hover:file:bg-brand-700">
+                    <p class="mt-1 text-xs text-ink-400">A photo you take is never replaced by a scraped image.</p>
+                </form>
+            </div>
+
+            {{-- ---------------------------------------------------- rating --}}
             <form method="POST" action="{{ route('recipes.rate', $recipe) }}" class="mt-5 border-t border-ink-100 pt-4">
                 @csrf
                 <h2 class="text-sm font-semibold text-ink-900">Rating</h2>

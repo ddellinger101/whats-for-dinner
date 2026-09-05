@@ -6,7 +6,7 @@ use App\Enums\ImageStatus;
 use App\Enums\IngredientsStatus;
 use App\Models\Ingredient;
 use App\Models\Recipe;
-use App\Support\IngredientCategoryGuesser;
+use App\Services\IngredientResolver;
 use App\Support\IngredientLine;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -26,7 +26,8 @@ class RecipeDetailImporter
 
     public function __construct(
         private readonly RecipeScraper $scraper = new RecipeScraper,
-        private readonly IngredientCategoryGuesser $categories = new IngredientCategoryGuesser,
+        // Shared with manual entry so both routes map a name to the same row.
+        private readonly IngredientResolver $ingredients = new IngredientResolver,
     ) {}
 
     /**
@@ -105,38 +106,7 @@ class RecipeDetailImporter
 
     private function resolveIngredient(string $name): Ingredient
     {
-        $name = Str::of($name)->squish()->limit(80, '')->value();
-
-        // One recipe writes "1 onion", the next writes "2 onions". Left alone
-        // those become two ingredients, and since use-by windows and use-up
-        // matching are keyed per ingredient (spec 4.1, 4.2.3), a meal using
-        // "onions" would not count as clearing the "onion" going off in the
-        // fridge. Match every form; keep whichever spelling arrived first.
-        $candidates = array_unique([
-            mb_strtolower($name),
-            mb_strtolower(Str::singular($name)),
-            mb_strtolower(Str::plural($name)),
-        ]);
-
-        $existing = Ingredient::query()
-            ->where(function ($query) use ($candidates) {
-                foreach ($candidates as $candidate) {
-                    $query->orWhereRaw('LOWER(name) = ?', [$candidate]);
-                }
-            })
-            ->first();
-
-        if ($existing) {
-            return $existing;
-        }
-
-        $category = $this->categories->guess($name);
-
-        return Ingredient::create([
-            'name' => $name,
-            'category' => $category,
-            'shelf_life_days' => $category->defaultShelfLifeDays(),
-        ]);
+        return $this->ingredients->resolve($name);
     }
 
     private function attachImage(Recipe $recipe, string $imageUrl): void
