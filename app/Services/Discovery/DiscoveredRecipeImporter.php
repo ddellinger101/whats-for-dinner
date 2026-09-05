@@ -23,8 +23,11 @@ use Throwable;
  */
 class DiscoveredRecipeImporter
 {
+    /** Set when the source site refused to be read at all. */
+    public bool $lastFetchRefused = false;
+
     public function __construct(
-        private readonly RecipeDetailImporter $details = new RecipeDetailImporter,
+        public readonly RecipeDetailImporter $details = new RecipeDetailImporter,
         private readonly RecipeTagGuesser $tags = new RecipeTagGuesser,
         private readonly ProteinGuesser $proteins = new ProteinGuesser,
     ) {}
@@ -72,6 +75,7 @@ class DiscoveredRecipeImporter
         // usable recipe behind with its link intact.
         try {
             $this->details->import($recipe);
+            $this->lastFetchRefused = $this->details->lastFetchRefused;
         } catch (Throwable $e) {
             Log::info('Discovered recipe import could not fetch details', [
                 'url' => $discovered->url,

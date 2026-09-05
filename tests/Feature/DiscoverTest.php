@@ -236,6 +236,39 @@ class DiscoverTest extends TestCase
         $this->assertSame(['https://example.com/mystery'], $recipe->recipe_links);
     }
 
+    /**
+     * Some large recipe sites answer 403 to anything automated. That will not
+     * change on a retry, so the app says so rather than pointing at a button
+     * that cannot work.
+     */
+    public function test_a_site_that_blocks_readers_is_reported_as_such(): void
+    {
+        Http::fake(['*' => Http::response('Forbidden', 403)]);
+
+        $this->actingAs($this->user)->post(route('discover.store'), [
+            'title' => 'Old School Beef Tacos',
+            'url' => 'https://blocked.example.com/tacos',
+        ])->assertRedirect();
+
+        $this->assertStringContainsString(
+            'blocks automated readers',
+            (string) session('status'),
+        );
+    }
+
+    /** A page that merely had nothing useful gets the ordinary message. */
+    public function test_an_unreadable_page_is_not_reported_as_blocked(): void
+    {
+        Http::fake(['*' => Http::response('<html><body>nothing here</body></html>')]);
+
+        $this->actingAs($this->user)->post(route('discover.store'), [
+            'title' => 'Mystery Stew',
+            'url' => 'https://example.com/mystery',
+        ])->assertRedirect();
+
+        $this->assertStringNotContainsString('blocks automated readers', (string) session('status'));
+    }
+
     /** Adding the same result twice must not make a second copy. */
     public function test_an_already_imported_recipe_is_recognised(): void
     {

@@ -96,9 +96,15 @@ class DiscoverController extends Controller
 
         $recipe = $this->importer->import($discovered);
 
-        $note = $recipe->ingredients_status->hasIngredients()
-            ? 'Added with its ingredients.'
-            : 'Added. Its ingredients could not be read from the page, so add them by hand when you get a moment.';
+        $note = match (true) {
+            $recipe->ingredients_status->hasIngredients() => 'Added with its ingredients.',
+            // Distinguished on purpose: a site that refuses automated readers
+            // will refuse again, so pointing at the retry button would waste
+            // the household's time.
+            $this->importer->lastFetchRefused => 'Added, but that site blocks automated readers. '
+                .'Open the recipe and paste its ingredient list in — there is a box for the whole list at once.',
+            default => 'Added. Its ingredients could not be read from the page, so add them by hand when you get a moment.',
+        };
 
         // Straight back to the slot being filled, if that is where this started.
         if (filled($validated['return_to'] ?? null) && str_starts_with($validated['return_to'], '/plan/')) {

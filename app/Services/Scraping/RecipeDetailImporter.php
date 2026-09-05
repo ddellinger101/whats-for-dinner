@@ -24,8 +24,15 @@ class RecipeDetailImporter
 
     private const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
+    /**
+     * True when the source site refused to be read, rather than simply having
+     * nothing useful on the page. Read by the caller to explain which of those
+     * happened.
+     */
+    public bool $lastFetchRefused = false;
+
     public function __construct(
-        private readonly RecipeScraper $scraper = new RecipeScraper,
+        public readonly RecipeScraper $scraper = new RecipeScraper,
         // Shared with manual entry so both routes map a name to the same row.
         private readonly IngredientResolver $ingredients = new IngredientResolver,
     ) {}
@@ -42,6 +49,7 @@ class RecipeDetailImporter
         }
 
         $scraped = $this->scraper->scrapeFirstUsable($links);
+        $this->lastFetchRefused = $this->scraper->lastFetchRefused;
 
         if (! $scraped) {
             return false;

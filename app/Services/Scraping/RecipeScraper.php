@@ -52,15 +52,37 @@ class RecipeScraper
             $scraped = $this->scrape($url);
 
             if ($scraped?->hasAnything()) {
+                $this->lastFetchRefused = false;
+
                 return $scraped;
             }
+
+            if ($this->lastFetchRefused) {
+                $refused = true;
+            }
         }
+
+        // Reported only when every candidate refused; one blocked link among
+        // several that simply had nothing is not the interesting case.
+        $this->lastFetchRefused = $refused ?? false;
 
         return null;
     }
 
+    /**
+     * Whether the last fetch was refused outright rather than merely useless.
+     *
+     * Some large recipe sites block automated readers, answering 403 in a
+     * fraction of a second. That is a deliberate refusal, not a transient
+     * failure, so the app tells the user to paste the list themselves instead
+     * of offering a retry that cannot work.
+     */
+    public bool $lastFetchRefused = false;
+
     public function scrape(string $url): ?ScrapedRecipe
     {
+        $this->lastFetchRefused = false;
+
         try {
             $response = Http::withHeaders([
                 // Plenty of recipe sites reject an obviously scripted client.
@@ -72,6 +94,10 @@ class RecipeScraper
                 ->get($url);
 
             if (! $response->successful()) {
+                // 401/403 is the site saying no; 429 is it saying not now.
+                // Either way, fetching again will not help.
+                $this->lastFetchRefused = in_array($response->status(), [401, 403, 429], true);
+
                 return null;
             }
 
