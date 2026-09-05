@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Ingredient;
+use App\Models\InventoryFlag;
 use App\Support\IngredientCategoryGuesser;
 use Illuminate\Console\Command;
 
@@ -68,15 +69,40 @@ class RecategoriseIngredients extends Command
             return self::SUCCESS;
         }
 
+        $refreshed = 0;
+
         foreach ($changes as $change) {
-            $change['ingredient']->update([
+            $ingredient = $change['ingredient'];
+
+            $ingredient->update([
                 'category' => $change['to'],
             ] + ($this->option('keep-shelf-life')
                 ? []
                 : ['shelf_life_days' => $change['to']->defaultShelfLifeDays()]));
+
+            if ($this->option('keep-shelf-life')) {
+                continue;
+            }
+
+            // A pantry row caches its own expiry, taken from the shelf life at
+            // the time it was bought. Leaving those alone would fix the
+            // category and change nothing anyone can see: beer would still be
+            // going off on Friday and bread would still keep for a year.
+            $refreshed += InventoryFlag::query()
+                ->where('ingredient_id', $ingredient->id)
+                ->whereNotNull('acquired_on')
+                ->get()
+                ->each(fn (InventoryFlag $flag) => $flag->update([
+                    'expires_on' => $flag->acquired_on->copy()->addDays($ingredient->fresh()->shelf_life_days),
+                ]))
+                ->count();
         }
 
         $this->info('Updated '.count($changes).' '.str('ingredient')->plural(count($changes)).'.');
+
+        if ($refreshed > 0) {
+            $this->info("Refreshed the use-by date on {$refreshed} pantry ".str('item')->plural($refreshed).'.');
+        }
 
         return self::SUCCESS;
     }

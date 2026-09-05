@@ -215,6 +215,31 @@ class RecipeScrapingTest extends TestCase
     }
 
     /**
+     * A pantry row caches its own expiry from the shelf life at purchase time,
+     * so fixing the category alone would change nothing anyone can see.
+     */
+    public function test_recategorising_refreshes_pantry_use_by_dates(): void
+    {
+        $bread = Ingredient::create([
+            'name' => 'Sourdough bread',
+            'category' => IngredientCategory::PantryDry,
+            'shelf_life_days' => 365,
+        ]);
+
+        $flag = \App\Models\InventoryFlag::create([
+            'ingredient_id' => $bread->id,
+            'has_stock' => true,
+            'acquired_on' => '2026-09-05',
+            'expires_on' => '2027-09-05',
+        ]);
+
+        $this->artisan('ingredients:recategorise --apply')->assertSuccessful();
+
+        // Seven days from when it was bought, not a year.
+        $this->assertSame('2026-09-12', $flag->fresh()->expires_on->toDateString());
+    }
+
+    /**
      * An unrecognised ingredient must still take part in use-by tracking, or it
      * silently opts out of the feature the app exists for.
      */
