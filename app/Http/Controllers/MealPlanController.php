@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\CategoryTag;
 use App\Enums\MealSlot;
+use App\Enums\ProteinType;
 use App\Models\HouseholdSetting;
 use App\Models\MealComponent;
 use App\Models\MealPlanEntry;
@@ -69,11 +71,27 @@ class MealPlanController extends Controller
 
         $wantsPrimary = $request->boolean('primary', $mealSlot->usesSuggestionEngine() && ! $entry?->primaryComponent());
 
-        $suggestions = $wantsPrimary
-            ? (new RecipeSuggestionRanker)->for($day, limit: 30)
-            : collect();
-
         $search = trim((string) $request->query('q', ''));
+        $protein = $request->query('protein');
+        $tag = $request->query('tag');
+
+        // Filtering happens after ranking rather than inside it, so a narrowed
+        // list keeps the spec 4.2 order — the use-up boost still floats to the
+        // top of whatever subset is showing.
+        $suggestions = $wantsPrimary
+            ? (new RecipeSuggestionRanker)->for($day, limit: 500)
+                ->when($search !== '', fn ($all) => $all->filter(
+                    fn ($s) => str_contains(mb_strtolower($s->recipe->name), mb_strtolower($search)),
+                ))
+                ->when($protein, fn ($all) => $all->filter(
+                    fn ($s) => $s->recipe->protein_type->value === $protein,
+                ))
+                ->when($tag, fn ($all) => $all->filter(
+                    fn ($s) => $s->recipe->category_tags->contains(fn ($t) => $t->value === $tag),
+                ))
+                ->take(40)
+                ->values()
+            : collect();
 
         return view('plan.picker', [
             'day' => $day,
@@ -82,6 +100,11 @@ class MealPlanController extends Controller
             'wantsPrimary' => $wantsPrimary,
             'suggestions' => $suggestions,
             'search' => $search,
+            'protein' => $protein,
+            'tag' => $tag,
+            'proteins' => ProteinType::cases(),
+            'cuisines' => CategoryTag::cuisines(),
+            'styles' => CategoryTag::styles(),
             'simpleItems' => SimpleItem::query()
                 ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
                 ->orderBy('name')

@@ -63,6 +63,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/grocery/{item}/toggle', [GroceryController::class, 'toggle'])->name('grocery.toggle');
     Route::delete('/grocery/{item}', [GroceryController::class, 'destroy'])->name('grocery.destroy');
     Route::post('/grocery/{item}/stocked', [GroceryController::class, 'markStocked'])->name('grocery.stocked');
+    Route::post('/grocery/{item}/aisle', [GroceryController::class, 'setAisle'])->name('grocery.aisle');
     Route::post('/grocery/clear-purchased', [GroceryController::class, 'clearPurchased'])->name('grocery.clear');
 
     Route::get('/recipes', [RecipeController::class, 'index'])->name('recipes');

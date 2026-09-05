@@ -12,10 +12,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class GroceryListItem extends Model
 {
-    use HasFactory, HasUuids;
+    // Soft deleted so the list keeps its own history: cleared lines still feed
+    // the add-item autofill and the aisle guesser's memory.
+    use HasFactory, HasUuids, \Illuminate\Database\Eloquent\SoftDeletes;
 
     protected $fillable = [
-        'item_name', 'quantity', 'unit', 'source', 'status',
+        'item_name', 'quantity', 'unit', 'aisle', 'source', 'status',
         'added_date', 'source_component_id', 'ingredient_id',
     ];
 
@@ -24,6 +26,7 @@ class GroceryListItem extends Model
         return [
             'source' => GroceryItemSource::class,
             'status' => GroceryItemStatus::class,
+            'aisle' => \App\Enums\GroceryAisle::class,
             'added_date' => \App\Casts\DateOnly::class,
             'quantity' => 'decimal:3',
         ];

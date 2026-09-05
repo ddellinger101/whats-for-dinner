@@ -102,6 +102,22 @@ class IngredientCategoryGuesser
 
     public function guess(string $ingredientName): IngredientCategory
     {
+        // Unknown ingredients are treated as produce: the shortest shelf life of
+        // the perishable categories. Erring toward perishable means an unknown
+        // ingredient still takes part in use-up suggestions, which is the safer
+        // failure — the alternative silently excludes it forever.
+        return $this->guessOrNull($ingredientName) ?? IngredientCategory::Produce;
+    }
+
+    /**
+     * The same match, but honest about a miss.
+     *
+     * Callers that need to distinguish "this is produce" from "I have no idea"
+     * use this — the aisle guesser files a genuine unknown under Other, which
+     * prompts a human, rather than quietly shelving it with the vegetables.
+     */
+    public function guessOrNull(string $ingredientName): ?IngredientCategory
+    {
         $name = mb_strtolower($ingredientName);
 
         foreach ($this->rules() as [$category, $keywords]) {
@@ -112,10 +128,6 @@ class IngredientCategoryGuesser
             }
         }
 
-        // Unknown ingredients are treated as produce: the shortest shelf life of
-        // the perishable categories. Erring toward perishable means an unknown
-        // ingredient still takes part in use-up suggestions, which is the safer
-        // failure — the alternative silently excludes it forever.
-        return IngredientCategory::Produce;
+        return null;
     }
 }

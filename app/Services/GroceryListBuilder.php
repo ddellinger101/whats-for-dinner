@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Enums\GroceryAisle;
 use App\Enums\GroceryItemSource;
 use App\Enums\GroceryItemStatus;
 use App\Models\GroceryListItem;
 use App\Models\MealComponent;
 use App\Models\RepeaterItem;
+use App\Support\AisleGuesser;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -16,6 +18,10 @@ use Illuminate\Support\Collection;
  */
 class GroceryListBuilder
 {
+    public function __construct(
+        private readonly AisleGuesser $aisles = new AisleGuesser,
+    ) {}
+
     /**
      * Add everything a newly assigned component needs.
      */
@@ -57,6 +63,7 @@ class GroceryListBuilder
                         ? null
                         : $perServing * $recipe->base_servings * $multiplier,
                     'unit' => $ingredient->pivot->unit ?? $ingredient->default_unit,
+                    'aisle' => $this->aisles->guess($ingredient->name, $ingredient),
                     'source' => GroceryItemSource::AutoRecipe,
                     'status' => GroceryItemStatus::Needed,
                     'added_date' => $addedOn,
@@ -85,6 +92,7 @@ class GroceryListBuilder
                 'item_name' => $line,
                 'quantity' => $component->servings_needed,
                 'unit' => null,
+                'aisle' => $this->aisles->guess($line),
                 'source' => GroceryItemSource::AutoSimpleItem,
                 'status' => GroceryItemStatus::Needed,
                 'added_date' => $addedOn,
@@ -115,12 +123,19 @@ class GroceryListBuilder
     /**
      * Add an item by hand, independent of the meal plan (spec 4.6).
      */
-    public function addManual(string $name, ?float $quantity = null, ?string $unit = null, ?Carbon $addedOn = null): GroceryListItem
-    {
+    public function addManual(
+        string $name,
+        ?float $quantity = null,
+        ?string $unit = null,
+        ?Carbon $addedOn = null,
+        ?GroceryAisle $aisle = null,
+    ): GroceryListItem {
         return GroceryListItem::create([
             'item_name' => $name,
             'quantity' => $quantity,
             'unit' => $unit,
+            // A chosen aisle wins; otherwise fall back to what the app knows.
+            'aisle' => $aisle ?? $this->aisles->guess($name),
             'source' => GroceryItemSource::Manual,
             'status' => GroceryItemStatus::Needed,
             'added_date' => $addedOn ?? Carbon::today(),
@@ -149,6 +164,7 @@ class GroceryListBuilder
             ->reject(fn (RepeaterItem $r) => in_array(mb_strtolower($r->item_name), $alreadyListed, true))
             ->map(fn (RepeaterItem $r) => GroceryListItem::create([
                 'item_name' => $r->item_name,
+                'aisle' => $this->aisles->guess($r->item_name),
                 'source' => GroceryItemSource::Repeater,
                 'status' => GroceryItemStatus::Needed,
                 'added_date' => $asOf,

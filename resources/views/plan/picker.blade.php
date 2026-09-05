@@ -34,9 +34,69 @@
                class="ml-auto text-xs font-medium text-brand-600 hover:text-brand-700">Add a side instead</a>
         </div>
 
+        @php
+            // Every filter link keeps the slot it is filling, and the other
+            // filters already applied.
+            $base = ['date' => $day->toDateString(), 'slot' => $slot->value, 'primary' => 1];
+            $keep = array_filter(['q' => $search ?: null, 'protein' => $protein, 'tag' => $tag]);
+        @endphp
+
+        <form method="GET" action="{{ route('plan.picker', ['date' => $day->toDateString(), 'slot' => $slot->value]) }}"
+              class="mt-2">
+            <input type="hidden" name="primary" value="1">
+            @if ($protein) <input type="hidden" name="protein" value="{{ $protein }}"> @endif
+            @if ($tag) <input type="hidden" name="tag" value="{{ $tag }}"> @endif
+            <input type="search" name="q" value="{{ $search }}" placeholder="Search recipes&hellip;"
+                   class="min-h-tap w-full rounded-xl border border-ink-200 bg-white px-4 text-base outline-none
+                          focus:border-brand-500 focus:ring-2 focus:ring-brand-200">
+        </form>
+
+        <div class="-mx-4 mt-2 overflow-x-auto px-4 pb-1">
+            <div class="flex w-max gap-2">
+                <a href="{{ route('plan.picker', $base + array_filter(['q' => $search ?: null])) }}"
+                   class="min-h-9 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition
+                          {{ ! $protein && ! $tag ? 'border-brand-600 bg-brand-600 text-white' : 'border-ink-200 bg-white text-ink-600' }}">
+                    All
+                </a>
+                @foreach ($proteins as $option)
+                    <a href="{{ route('plan.picker', $base + array_filter(['q' => $search ?: null, 'tag' => $tag]) + ['protein' => $option->value]) }}"
+                       class="min-h-9 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition
+                              {{ $protein === $option->value ? 'border-brand-600 bg-brand-600 text-white' : 'border-ink-200 bg-white text-ink-600' }}">
+                        {{ $option->label() }}
+                    </a>
+                @endforeach
+            </div>
+        </div>
+
+        <div class="-mx-4 mt-2 overflow-x-auto px-4 pb-1">
+            <div class="flex w-max gap-2">
+                @foreach ($cuisines as $option)
+                    <a href="{{ route('plan.picker', $base + array_filter(['q' => $search ?: null, 'protein' => $protein]) + ['tag' => $option->value]) }}"
+                       class="min-h-9 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition
+                              {{ $tag === $option->value ? 'border-leaf-600 bg-leaf-600 text-white' : 'border-ink-200 bg-white text-ink-600' }}">
+                        {{ $option->label() }}
+                    </a>
+                @endforeach
+                @foreach ($styles as $option)
+                    <a href="{{ route('plan.picker', $base + array_filter(['q' => $search ?: null, 'protein' => $protein]) + ['tag' => $option->value]) }}"
+                       class="min-h-9 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition
+                              {{ $tag === $option->value ? 'border-brand-600 bg-brand-600 text-white' : 'border-ink-200 bg-white text-ink-600' }}">
+                        {{ $option->label() }}
+                    </a>
+                @endforeach
+            </div>
+        </div>
+
         @if ($suggestions->isEmpty())
             <p class="mt-3 rounded-xl border border-dashed border-ink-200 px-4 py-6 text-center text-sm text-ink-600">
-                No recipes match. Try turning off the diet filter, or add a side instead.
+                No recipes match.
+                @if ($keep !== [])
+                    <a href="{{ route('plan.picker', $base) }}"
+                       class="font-medium text-brand-600 hover:text-brand-700">Clear the filters</a>
+                    to see everything.
+                @else
+                    Try turning off the diet filter, or add a side instead.
+                @endif
             </p>
         @else
             <ul class="mt-2 space-y-2">
