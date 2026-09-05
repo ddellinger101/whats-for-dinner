@@ -123,6 +123,66 @@ class RecipeScrapingTest extends TestCase
     }
 
     /**
+     * Substring matching hides a family of traps: "tea" sits inside "steak",
+     * "ale" inside "kale", "ham" inside "graham", "oat" inside "goat". Matching
+     * at a word boundary kills all of them at once.
+     */
+    public function test_keywords_match_at_word_boundaries(): void
+    {
+        $guesser = new IngredientCategoryGuesser;
+
+        $this->assertSame(IngredientCategory::Protein, $guesser->guess('Ribeye steak'));
+        $this->assertSame(IngredientCategory::Produce, $guesser->guess('Kale'));
+        $this->assertSame(IngredientCategory::PantryDry, $guesser->guess('Graham crackers'));
+        $this->assertSame(IngredientCategory::Dairy, $guesser->guess('Goat cheese'));
+
+        // Deliberate stems still work.
+        $this->assertSame(IngredientCategory::Produce, $guesser->guess('Strawberries'));
+    }
+
+    /**
+     * Stocking the pantry from the real list surfaced both of these: bread was
+     * claiming a year of shelf life as a dry good, and beer six days as
+     * produce, which would have had the app urging someone to drink it before
+     * it went off.
+     */
+    public function test_bakery_and_drinks_get_sensible_shelf_lives(): void
+    {
+        $guesser = new IngredientCategoryGuesser;
+
+        $bread = $guesser->guess('Sourdough bread');
+        $this->assertSame(IngredientCategory::Bakery, $bread);
+        $this->assertSame(7, $bread->defaultShelfLifeDays());
+        $this->assertTrue($bread->isPerishable());
+
+        foreach (['Yuengling', 'Hard cider', 'Orange juice', 'Cold brew coffee'] as $drink) {
+            $this->assertSame(IngredientCategory::Beverage, $guesser->guess($drink), $drink);
+        }
+
+        // A sealed bottle is not a use-it-up prompt, so it opens no window.
+        $this->assertFalse(IngredientCategory::Beverage->isPerishable());
+    }
+
+    /** The re-categorise command reports before it writes. */
+    public function test_recategorising_is_a_dry_run_unless_told_otherwise(): void
+    {
+        $bread = Ingredient::create([
+            'name' => 'Sourdough bread',
+            'category' => IngredientCategory::PantryDry,
+            'shelf_life_days' => 365,
+        ]);
+
+        $this->artisan('ingredients:recategorise')->assertSuccessful();
+        $this->assertSame(IngredientCategory::PantryDry, $bread->fresh()->category);
+
+        $this->artisan('ingredients:recategorise --apply')->assertSuccessful();
+
+        $bread->refresh();
+        $this->assertSame(IngredientCategory::Bakery, $bread->category);
+        $this->assertSame(7, $bread->shelf_life_days);
+    }
+
+    /**
      * An unrecognised ingredient must still take part in use-by tracking, or it
      * silently opts out of the feature the app exists for.
      */

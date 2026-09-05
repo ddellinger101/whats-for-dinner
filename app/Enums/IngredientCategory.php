@@ -11,6 +11,12 @@ enum IngredientCategory: string
     case JarredCanned = 'jarred_canned';
     case Frozen = 'frozen';
     case Condiment = 'condiment';
+    // Neither existed until the pantry was stocked from a real list and showed
+    // why they must: bread was claiming a year of shelf life as a dry good, and
+    // beer was landing in produce with six days, which would have had the app
+    // urging someone to drink it before it went off.
+    case Bakery = 'bakery';
+    case Beverage = 'beverage';
 
     public function label(): string
     {
@@ -22,6 +28,8 @@ enum IngredientCategory: string
             self::JarredCanned => 'Jarred & canned',
             self::Frozen => 'Frozen',
             self::Condiment => 'Condiments',
+            self::Bakery => 'Bakery',
+            self::Beverage => 'Drinks',
         };
     }
 
@@ -39,14 +47,20 @@ enum IngredientCategory: string
             self::JarredCanned => 21,
             self::Frozen => 180,
             self::Condiment => 90,
+            self::Bakery => 7,
+            self::Beverage => 180,
         };
     }
 
     /**
-     * Everything but dry pantry goods gets a use-by window (spec 4.1).
+     * Which categories get a use-by window (spec 4.1).
+     *
+     * Drinks are excluded alongside dry goods: a sealed bottle is not a
+     * use-it-up prompt, and treating it as one would push recipes that
+     * "clear" beer to the top of the dinner suggestions.
      */
     public function isPerishable(): bool
     {
-        return $this !== self::PantryDry;
+        return ! in_array($this, [self::PantryDry, self::Beverage], true);
     }
 }

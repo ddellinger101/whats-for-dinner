@@ -40,6 +40,23 @@ class IngredientCategoryGuesser
                 'granulated', 'bouillon', 'ground cinnamon', 'ground cumin',
             ]],
 
+            // Before produce, or beer and cider inherit six days and start
+            // showing up as something to use before it goes off.
+            [IngredientCategory::Beverage, [
+                'beer', 'wine', 'cider', 'soda', 'cola', 'juice', 'seltzer',
+                'sparkling water', 'coffee', 'tea', 'lemonade', 'kombucha',
+                'ale', 'lager', 'ipa', 'bourbon', 'whiskey', 'whisky', 'vodka',
+                'gin', 'tequila', 'rum', 'champagne', 'prosecco', 'pilsner',
+                'stout', 'yuengling', 'la croix',
+            ]],
+
+            // Before the pantry, or bread claims a year of shelf life.
+            [IngredientCategory::Bakery, [
+                'bread', 'bun', 'bagel', 'baguette', 'tortilla', 'pita', 'naan',
+                'croissant', 'muffin', 'donut', 'doughnut', 'crescent', 'brioche',
+                'ciabatta', 'sourdough', 'hoagie', 'sub roll', 'dinner roll',
+            ]],
+
             [IngredientCategory::Condiment, [
                 'ketchup', 'mustard', 'mayo', 'mayonnaise', 'soy sauce', 'hot sauce',
                 'sriracha', 'vinegar', 'worcestershire', 'bbq sauce', 'barbecue sauce',
@@ -122,12 +139,25 @@ class IngredientCategoryGuesser
 
         foreach ($this->rules() as [$category, $keywords]) {
             foreach ($keywords as $keyword) {
-                if (str_contains($name, $keyword)) {
+                if ($this->matches($name, $keyword)) {
                     return $category;
                 }
             }
         }
 
         return null;
+    }
+
+    /**
+     * Word-start matching rather than a plain substring.
+     *
+     * A bare str_contains has a whole family of traps in it: "tea" sits inside
+     * "steak", "ale" inside "kale", "ham" inside "graham", "oat" inside "goat".
+     * Anchoring to a word boundary at the front kills all of them at once while
+     * still allowing deliberate stems — "berr" continues to match "berries".
+     */
+    private function matches(string $name, string $keyword): bool
+    {
+        return (bool) preg_match('/\b'.preg_quote($keyword, '/').'/u', $name);
     }
 }

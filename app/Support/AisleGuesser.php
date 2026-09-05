@@ -83,6 +83,8 @@ class AisleGuesser
             IngredientCategory::Dairy => GroceryAisle::Dairy,
             IngredientCategory::Protein => GroceryAisle::Meat,
             IngredientCategory::Frozen => GroceryAisle::Frozen,
+            IngredientCategory::Bakery => GroceryAisle::Bakery,
+            IngredientCategory::Beverage => GroceryAisle::Drinks,
             IngredientCategory::PantryDry,
             IngredientCategory::JarredCanned,
             IngredientCategory::Condiment => GroceryAisle::Pantry,

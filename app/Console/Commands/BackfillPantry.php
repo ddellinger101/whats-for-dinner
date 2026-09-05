@@ -35,7 +35,9 @@ class BackfillPantry extends Command
             return self::SUCCESS;
         }
 
-        $added = 0;
+        // Counted per ingredient, not per line: buying bread twice updates one
+        // pantry row, and reporting that as two stocked items is a lie.
+        $stocked = [];
         $skipped = 0;
 
         foreach ($items as $item) {
@@ -53,8 +55,10 @@ class BackfillPantry extends Command
             $flag = $inventory->recordPurchase($item, $item->added_date);
 
             if ($flag) {
-                $added++;
-                $this->line("  <fg=green>+</> {$flag->ingredient->name} ({$flag->amountLabel()})");
+                if (! isset($stocked[$flag->ingredient_id])) {
+                    $this->line("  <fg=green>+</> {$flag->ingredient->name} ({$flag->amountLabel()})");
+                }
+                $stocked[$flag->ingredient_id] = true;
             } else {
                 $skipped++;
             }
@@ -62,8 +66,8 @@ class BackfillPantry extends Command
 
         $this->newLine();
         $this->table(['Result', 'Count'], [
-            ['Stocked', $added],
-            ['Already known or unusable', $skipped],
+            ['Ingredients stocked', count($stocked)],
+            ['Lines already known or unusable', $skipped],
         ]);
 
         return self::SUCCESS;
