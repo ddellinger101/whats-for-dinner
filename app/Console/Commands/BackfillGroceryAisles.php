@@ -14,7 +14,8 @@ use Illuminate\Console\Command;
  */
 class BackfillGroceryAisles extends Command
 {
-    protected $signature = 'grocery:aisles {--all : Re-guess every line, not just the unfiled ones}';
+    protected $signature = 'grocery:aisles
+        {--all : Re-derive every line from scratch, ignoring past corrections}';
 
     protected $description = 'Work out which aisle existing grocery lines belong in';
 
@@ -35,7 +36,9 @@ class BackfillGroceryAisles extends Command
         $counts = [];
 
         foreach ($items as $item) {
-            $aisle = $aisles->guess($item->item_name, $item->ingredient);
+            // --all deliberately ignores the memory: it exists to apply improved
+            // rules, and consulting the memory would just echo the old answer.
+            $aisle = $aisles->guess($item->item_name, $item->ingredient, useMemory: ! $this->option('all'));
             $item->update(['aisle' => $aisle]);
             $counts[$aisle->label()] = ($counts[$aisle->label()] ?? 0) + 1;
         }

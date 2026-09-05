@@ -121,6 +121,34 @@ class GroceryAislesTest extends TestCase
         $this->assertSame(GroceryAisle::Pantry, (new AisleGuesser)->guess('birthday candles'));
     }
 
+    /**
+     * A re-derive must ignore the memory, or improved rules could never correct
+     * an earlier mistake — it would only read back its own previous answer.
+     */
+    public function test_a_forced_reguess_ignores_the_remembered_answer(): void
+    {
+        GroceryListItem::create([
+            'item_name' => 'Rotisserie chicken',
+            'source' => 'manual',
+            'status' => 'needed',
+            'added_date' => self::WEDNESDAY,
+            // Filed wrongly by an earlier version of the rules.
+            'aisle' => GroceryAisle::Meat,
+        ]);
+
+        $guesser = new AisleGuesser;
+
+        $this->assertSame(GroceryAisle::Meat, $guesser->guess('Rotisserie chicken'));
+        $this->assertSame(
+            GroceryAisle::ReadyToEat,
+            $guesser->guess('Rotisserie chicken', null, useMemory: false),
+        );
+
+        $this->artisan('grocery:aisles --all')->assertSuccessful();
+
+        $this->assertSame(GroceryAisle::ReadyToEat, GroceryListItem::firstOrFail()->aisle);
+    }
+
     /** Tidying the list must not erase what it learned. */
     public function test_memory_survives_clearing_the_list(): void
     {

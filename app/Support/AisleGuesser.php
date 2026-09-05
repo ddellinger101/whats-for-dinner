@@ -89,9 +89,15 @@ class AisleGuesser
         };
     }
 
-    public function guess(string $itemName, ?Ingredient $ingredient = null): GroceryAisle
+    /**
+     * @param  bool  $useMemory  Pass false to re-derive from scratch. A re-guess
+     *                           that consulted the memory would only ever return
+     *                           its own previous answer, so improved rules could
+     *                           never correct an old mistake.
+     */
+    public function guess(string $itemName, ?Ingredient $ingredient = null, bool $useMemory = true): GroceryAisle
     {
-        if ($remembered = $this->remembered($itemName)) {
+        if ($useMemory && $remembered = $this->remembered($itemName)) {
             return $remembered;
         }
 
