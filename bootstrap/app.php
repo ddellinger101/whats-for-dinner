@@ -12,7 +12,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Cloudways terminates TLS at Varnish/nginx and forwards over plain
+        // HTTP. Without trusting the forwarded headers Laravel believes the
+        // request is insecure, generates http:// URLs, and its trailing-slash
+        // redirects silently downgrade visitors off HTTPS — which also breaks
+        // Google's OAuth verification fetch of the legal pages.
+        $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
