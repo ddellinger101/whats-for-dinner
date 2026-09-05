@@ -1,58 +1,70 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# What's For Dinner
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A private meal-planning app for one household. Plan the week's meals on a Sunday,
+get recipe suggestions that use up perishables already in the fridge, keep a
+grocery list that builds itself, and track what was worth cooking again.
 
-## About Laravel
+The full behavioural specification lives in [SPEC.md](SPEC.md); it is the source
+of truth, and section references throughout the code point back to it.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Stack
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+| | |
+|---|---|
+| Framework | Laravel 13 on PHP 8.3 |
+| Database | SQLite locally, MySQL in production |
+| Frontend | Blade + Tailwind CSS 4, built with Vite |
+| Hosting | Cloudways, served at `chef.dustindellinger.com` |
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Mobile-first by requirement, not by preference: the app is used standing in a
+kitchen, so touch targets and layout are designed for a phone and scaled up.
 
-## Learning Laravel
+## Local setup
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```sh
+composer install
+npm install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --seed
+npm run build
+php artisan serve
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+`.env` needs Google OAuth credentials for the calendar push (section 4.8). They
+are never committed.
 
-## Contributing
+## Importing the recipe archive
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+The source spreadsheet holds 143 dishes across five per-protein sheets. It is
+personal data and is not committed; place it at
+`storage/app/import/whats_for_dinner.xlsx`.
 
-## Code of Conduct
+```sh
+php artisan recipes:import --dry-run   # report without writing
+php artisan recipes:import             # idempotent; safe to re-run
+php artisan recipes:inspect            # dump the workbook's structure
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Recipes import immediately with `ingredients_status = not_yet_added`, so nothing
+is blocked or hidden while ingredients are still missing (section 4.7).
 
-## Security Vulnerabilities
+## Tests
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```sh
+php artisan test
+```
 
-## License
+The importer tests skip themselves when the source spreadsheet is absent.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Notes on data
+
+- Two tables are not named in section 3 but are required by the business logic:
+  `ingredient_use_by_windows` (section 4.1 needs a per-ingredient, per-week
+  window with an editable purchase date) and `household_settings` (the "kids
+  this weekend" toggle, shopping day, and active diet mode).
+- The workbook has no keto column, so `is_keto` is inferred from dish names and
+  link slugs on import. Treat those as starting values to review, not as fact.
+- Recipe images are outside the original spec: either scraped from the recipe
+  link or photographed in the kitchen. A photo you took is never overwritten by
+  a later scrape.
