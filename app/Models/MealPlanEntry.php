@@ -12,7 +12,7 @@ class MealPlanEntry extends Model
 {
     use HasFactory, HasUuids;
 
-    protected $fillable = ['date', 'slot', 'household_size_used'];
+    protected $fillable = ['date', 'slot', 'household_size_used', 'servings_manually_set'];
 
     protected function casts(): array
     {
@@ -20,6 +20,7 @@ class MealPlanEntry extends Model
             'date' => 'date',
             'slot' => MealSlot::class,
             'household_size_used' => 'integer',
+            'servings_manually_set' => 'boolean',
         ];
     }
 
@@ -40,5 +41,30 @@ class MealPlanEntry extends Model
     public function primaryRecipe(): ?Recipe
     {
         return $this->primaryComponent()?->recipe;
+    }
+
+    /**
+     * Pin this slot to a chosen number of servings. Holidays and guests break
+     * the weekly rotation often enough that the manual figure has to survive any
+     * later recalculation, so this also sets the flag that protects it.
+     */
+    public function setServings(int $servings): self
+    {
+        $this->update([
+            'household_size_used' => max(1, $servings),
+            'servings_manually_set' => true,
+        ]);
+
+        return $this;
+    }
+
+    /**
+     * Hand the slot back to the weekly schedule.
+     */
+    public function useScheduledServings(): self
+    {
+        $this->update(['servings_manually_set' => false]);
+
+        return $this;
     }
 }

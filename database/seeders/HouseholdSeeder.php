@@ -12,9 +12,10 @@ class HouseholdSeeder extends Seeder
      * Spec 3: "Mon/Tue = 2, Wed/Thu = 5, alternating weekends = 5, other weekend
      * days = 2 (editable toggle for 'kids this weekend')".
      *
-     * Friday is not specified in the spec. Treated here as custody-variable on
-     * the assumption that a custody weekend starts Friday evening — one row edit
-     * to change if that is wrong.
+     * Friday, Saturday and Sunday are custody-variable: the kids are here every
+     * other Fri/Sat/Sun, so the "kids this weekend" toggle switches all three.
+     * These are only defaults; any individual slot can be pinned to a chosen
+     * number of servings, which is never recalculated away.
      */
     public function run(): void
     {
@@ -25,7 +26,7 @@ class HouseholdSeeder extends Seeder
             2 => [2, 2, false],  // Tuesday
             3 => [5, 5, false],  // Wednesday
             4 => [5, 5, false],  // Thursday
-            5 => [5, 2, true],   // Friday — assumption, see above
+            5 => [5, 2, true],   // Friday
             6 => [5, 2, true],   // Saturday
         ];
 
