@@ -42,10 +42,9 @@
                 <legend class="text-sm font-medium text-ink-800">Usually shows up at</legend>
                 <div class="mt-1.5 flex flex-wrap gap-2">
                     @foreach ($hints as $hint)
-                        <label class="min-h-tap cursor-pointer rounded-xl border px-4 py-2.5 text-sm font-medium transition
-                                      {{ $item->meal_type_hint === $hint
-                                          ? 'border-brand-600 bg-brand-600 text-white'
-                                          : 'border-ink-200 bg-white text-ink-800 hover:border-brand-400' }}">
+                        <label class="min-h-tap cursor-pointer rounded-xl border border-ink-200 bg-white px-4 py-2.5
+                                      text-sm font-medium text-ink-800 transition hover:border-brand-400
+                                      has-checked:border-brand-600 has-checked:bg-brand-600 has-checked:text-white">
                             <input type="radio" name="meal_type_hint" value="{{ $hint->value }}" class="sr-only"
                                    @checked($item->meal_type_hint === $hint)>
                             {{ $hint->label() }}

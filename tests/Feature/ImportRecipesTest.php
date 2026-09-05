@@ -42,7 +42,8 @@ class ImportRecipesTest extends TestCase
         $this->assertSame(33, $byProtein[ProteinType::Beef->value]);
         $this->assertSame(22, $byProtein[ProteinType::Pork->value]);
         $this->assertSame(15, $byProtein[ProteinType::Seafood->value]);
-        $this->assertSame(10, $byProtein[ProteinType::Other->value]);
+        // The workbook's catch-all "Other" sheet now imports as Vegetarian.
+        $this->assertSame(10, $byProtein[ProteinType::Vegetarian->value]);
     }
 
     /** Spec 4.7: nothing is blocked while ingredients are missing. */

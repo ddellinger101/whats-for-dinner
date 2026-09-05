@@ -8,7 +8,7 @@ enum ProteinType: string
     case Beef = 'beef';
     case Pork = 'pork';
     case Seafood = 'seafood';
-    case Other = 'other';
+    case Vegetarian = 'vegetarian';
     case None = 'none';
 
     public function label(): string
@@ -18,7 +18,7 @@ enum ProteinType: string
             self::Beef => 'Beef',
             self::Pork => 'Pork',
             self::Seafood => 'Seafood',
-            self::Other => 'Other',
+            self::Vegetarian => 'Vegetarian',
             self::None => 'No protein',
         };
     }

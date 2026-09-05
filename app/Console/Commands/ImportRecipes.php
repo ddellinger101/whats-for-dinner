@@ -30,7 +30,8 @@ class ImportRecipes extends Command
         'Beef' => ProteinType::Beef,
         'Pork' => ProteinType::Pork,
         'Seafood' => ProteinType::Seafood,
-        'Other' => ProteinType::Other,
+        // The workbook's catch-all sheet; these dishes have no stated protein.
+        'Other' => ProteinType::Vegetarian,
     ];
 
     public function handle(): int

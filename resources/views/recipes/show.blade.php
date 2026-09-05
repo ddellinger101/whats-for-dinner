@@ -3,6 +3,17 @@
 @section('title', $recipe->name)
 @section('heading', 'Recipe')
 
+@section('header-actions')
+    <a href="{{ route('recipes.edit', $recipe) }}"
+       class="grid size-tap place-items-center rounded-lg text-brand-100 transition hover:bg-white/10 hover:text-white"
+       aria-label="Edit recipe details" title="Edit name, protein, tags and links">
+        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+        </svg>
+    </a>
+@endsection
+
 @section('content')
     <a href="{{ route('recipes') }}"
        class="inline-flex min-h-tap items-center gap-1.5 text-sm font-medium text-ink-600 hover:text-brand-700">
@@ -230,10 +241,12 @@
                         [\App\Enums\Rating::JustOk, 'Just OK'],
                         [\App\Enums\Rating::ThumbsDown, 'No thanks'],
                     ] as [$rating, $label])
-                        <label class="min-h-tap cursor-pointer rounded-xl border px-4 py-2.5 text-sm font-medium transition
-                                      {{ $recipe->rating === $rating
-                                          ? 'border-brand-600 bg-brand-600 text-white'
-                                          : 'border-ink-200 bg-white text-ink-800 hover:border-brand-400' }}">
+                        {{-- Styled from :has(:checked) rather than from the saved
+                             value, so the button lights up the instant it is
+                             tapped instead of only after saving. --}}
+                        <label class="min-h-tap cursor-pointer rounded-xl border border-ink-200 bg-white px-4 py-2.5
+                                      text-sm font-medium text-ink-800 transition hover:border-brand-400
+                                      has-checked:border-brand-600 has-checked:bg-brand-600 has-checked:text-white">
                             <input type="radio" name="rating" value="{{ $rating->value }}" class="sr-only"
                                    @checked($recipe->rating === $rating)>
                             {{ $label }}

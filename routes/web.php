@@ -66,6 +66,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/grocery/clear-purchased', [GroceryController::class, 'clearPurchased'])->name('grocery.clear');
 
     Route::get('/recipes', [RecipeController::class, 'index'])->name('recipes');
+    // Declared before the {recipe} route, or "new" is read as a recipe id.
+    Route::get('/recipes/new', [RecipeController::class, 'create'])->name('recipes.create');
+    Route::post('/recipes', [RecipeController::class, 'store'])->name('recipes.store');
+    Route::get('/recipes/{recipe}/edit', [RecipeController::class, 'edit'])->name('recipes.edit');
+    Route::put('/recipes/{recipe}', [RecipeController::class, 'update'])->name('recipes.update');
     Route::get('/recipes/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
     Route::post('/recipes/{recipe}/rate', [RecipeController::class, 'rate'])->name('recipes.rate');
     Route::post('/recipes/{recipe}/cooked', [RecipeController::class, 'markCooked'])->name('recipes.cooked');

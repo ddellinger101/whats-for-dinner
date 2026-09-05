@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\CategoryTag;
+use App\Enums\MealType;
 use App\Enums\ProteinType;
 use App\Enums\Rating;
 use App\Jobs\ImportRecipeDetails;
@@ -43,6 +44,85 @@ class RecipeController extends Controller
             'tags' => CategoryTag::cases(),
             'dietMode' => HouseholdSetting::current()->diet_mode,
         ]);
+    }
+
+    public function create(): View
+    {
+        return view('recipes.form', [
+            'recipe' => new Recipe,
+            'proteins' => ProteinType::cases(),
+            'mealTypes' => MealType::cases(),
+            'cuisines' => CategoryTag::cuisines(),
+            'styles' => CategoryTag::styles(),
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $this->validateDetails($request);
+
+        $recipe = Recipe::create($validated + ['created_from_import' => false]);
+
+        return redirect()->route('recipes.show', $recipe)
+            ->with('status', "{$recipe->name} created. Add its ingredients below.");
+    }
+
+    public function edit(Recipe $recipe): View
+    {
+        return view('recipes.form', [
+            'recipe' => $recipe,
+            'proteins' => ProteinType::cases(),
+            'mealTypes' => MealType::cases(),
+            'cuisines' => CategoryTag::cuisines(),
+            'styles' => CategoryTag::styles(),
+        ]);
+    }
+
+    public function update(Request $request, Recipe $recipe): RedirectResponse
+    {
+        $recipe->update($this->validateDetails($request));
+
+        return redirect()->route('recipes.show', $recipe)->with('status', 'Recipe saved.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validateDetails(Request $request): array
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:160'],
+            'protein_type' => ['required', 'string', 'in:'.implode(',', array_column(ProteinType::cases(), 'value'))],
+            'meal_type' => ['required', 'string', 'in:'.implode(',', array_column(MealType::cases(), 'value'))],
+            'base_servings' => ['required', 'integer', 'min:1', 'max:60'],
+            'category_tags' => ['nullable', 'array'],
+            'category_tags.*' => ['string', 'in:'.implode(',', array_column(CategoryTag::cases(), 'value'))],
+            'links' => ['nullable', 'string', 'max:4000'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $links = collect(preg_split('/\r\n|\r|\n/', (string) ($validated['links'] ?? '')))
+            ->map(fn ($line) => trim((string) $line))
+            ->filter(fn ($line) => $line !== '' && filter_var($line, FILTER_VALIDATE_URL) !== false)
+            ->unique()
+            ->take(10)
+            ->values()
+            ->all();
+
+        $tags = $validated['category_tags'] ?? [];
+
+        return [
+            'name' => $validated['name'],
+            'protein_type' => $validated['protein_type'],
+            'meal_type' => $validated['meal_type'],
+            'base_servings' => $validated['base_servings'],
+            'category_tags' => $tags,
+            'recipe_links' => $links,
+            'notes' => $validated['notes'] ?? null,
+            // Spec 3: the keto tag and the keto flag are two views of one fact,
+            // so setting either has to set the other.
+            'is_keto' => in_array(CategoryTag::Keto->value, $tags, true),
+        ];
     }
 
     public function show(Recipe $recipe): View

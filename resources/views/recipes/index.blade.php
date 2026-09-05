@@ -3,6 +3,15 @@
 @section('title', 'Recipes')
 @section('heading', 'Recipes')
 
+@section('header-actions')
+    <a href="{{ route('recipes.create') }}"
+       class="grid size-tap place-items-center rounded-lg text-brand-100 transition hover:bg-white/10 hover:text-white"
+       aria-label="Add a recipe" title="Add a recipe">
+        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </a>
+@endsection
+
 @section('content')
     <form method="GET" action="{{ route('recipes') }}">
         <input type="search" name="q" value="{{ $search }}" placeholder="Search recipes&hellip;"
