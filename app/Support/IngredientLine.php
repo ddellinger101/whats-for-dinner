@@ -73,7 +73,16 @@ readonly class IngredientLine
         $working = strtr($working, self::FRACTIONS);
 
         // Bracketed asides are almost always metric equivalents or brand notes.
-        $working = preg_replace('/\([^)]*\)/', ' ', $working) ?? $working;
+        // Applied repeatedly because they nest — "2 (6-ounce) breasts)" would
+        // otherwise match "(2 (6-ounce)" and strand the closing bracket in the
+        // ingredient name. Any bracket still standing after that is unbalanced
+        // in the source, so it goes too.
+        do {
+            $before = $working;
+            $working = preg_replace('/\([^()]*\)/', ' ', $working) ?? $working;
+        } while ($working !== $before);
+
+        $working = str_replace(['(', ')', '[', ']'], ' ', $working);
         $working = preg_replace('/\s+/', ' ', trim($working)) ?? $working;
 
         [$quantity, $working] = self::extractQuantity($working);
@@ -152,7 +161,7 @@ readonly class IngredientLine
         }
 
         $text = preg_replace('/\s+/', ' ', $text) ?? $text;
-        $text = trim($text, " \t\n\r\0\x0B-–—.*");
+        $text = trim($text, " \t\n\r\0\x0B-–—.*()[]");
 
         return ucfirst($text);
     }

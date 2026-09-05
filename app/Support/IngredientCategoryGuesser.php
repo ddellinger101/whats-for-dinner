@@ -55,7 +55,10 @@ class IngredientCategoryGuesser
         ],
         IngredientCategory::Produce->value => [
             'onion', 'garlic', 'tomato', 'lettuce', 'spinach', 'kale', 'carrot',
-            'celery', 'pepper', 'bell pepper', 'jalapeno', 'jalapeño', 'cucumber',
+            // Deliberately not a bare "pepper": that matches black pepper and
+            // "salt and pepper", which are pantry seasonings, not produce.
+            'celery', 'bell pepper', 'red pepper', 'green pepper', 'poblano',
+            'serrano', 'jalapeno', 'jalapeño', 'cucumber',
             'zucchini', 'squash', 'broccoli', 'cauliflower', 'mushroom', 'potato',
             'sweet potato', 'avocado', 'lime', 'lemon', 'cilantro', 'parsley',
             'basil', 'thyme', 'rosemary', 'ginger', 'scallion', 'green onion',
@@ -65,7 +68,7 @@ class IngredientCategoryGuesser
             'cranberr', 'raspberr', 'herb', 'leek', 'radish', 'beet', 'eggplant',
         ],
         IngredientCategory::PantryDry->value => [
-            'flour', 'sugar', 'salt', 'pepper', 'baking powder', 'baking soda',
+            'flour', 'sugar', 'salt', 'pepper', 'peppercorn', 'baking powder', 'baking soda',
             'rice', 'pasta', 'noodle', 'bread', 'breadcrumb', 'oat', 'quinoa',
             'lentil', 'bean', 'chickpea', 'cornstarch', 'cocoa', 'vanilla',
             'cinnamon', 'cumin', 'paprika', 'oregano', 'chili powder', 'curry',

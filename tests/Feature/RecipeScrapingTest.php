@@ -48,6 +48,9 @@ class RecipeScrapingTest extends TestCase
             'range takes the low end' => ['2-3 cloves garlic', 2.0, 'clove', 'Garlic'],
             'inline prep word' => ['1 cup finely grated parmesan', 1.0, 'cup', 'Parmesan'],
             'no unit, countable' => ['4 boneless chicken thighs', 4.0, null, 'Boneless chicken thighs'],
+            // Nested brackets used to strand the closing one in the name.
+            'nested parenthetical' => ['2 (6-ounce (170g)) chicken breasts', 2.0, null, 'Chicken breasts'],
+            'unbalanced bracket' => ['1 cup heavy cream)', 1.0, 'cup', 'Heavy cream'],
         ];
     }
 
@@ -82,6 +85,20 @@ class RecipeScrapingTest extends TestCase
         $this->assertSame(IngredientCategory::JarredCanned, $guesser->guess('Canned black beans'));
         $this->assertSame(IngredientCategory::Condiment, $guesser->guess('Olive oil'));
         $this->assertSame(IngredientCategory::Frozen, $guesser->guess('Frozen peas'));
+    }
+
+    /**
+     * "Pepper" is two different things. Seasoning belongs in the pantry with a
+     * year of shelf life; a bell pepper is produce that goes off in a week.
+     */
+    public function test_pepper_the_seasoning_is_not_pepper_the_vegetable(): void
+    {
+        $guesser = new IngredientCategoryGuesser;
+
+        $this->assertSame(IngredientCategory::PantryDry, $guesser->guess('Salt and pepper'));
+        $this->assertSame(IngredientCategory::PantryDry, $guesser->guess('Black pepper'));
+        $this->assertSame(IngredientCategory::Produce, $guesser->guess('Red bell pepper'));
+        $this->assertSame(IngredientCategory::Produce, $guesser->guess('Jalapeno'));
     }
 
     /**
