@@ -240,6 +240,34 @@ class RecipeScrapingTest extends TestCase
     }
 
     /**
+     * Anything corrected in an earlier run keeps its stale cached date, because
+     * the per-change refresh only fires for categories moving in that run.
+     */
+    public function test_pantry_dates_can_be_refreshed_on_their_own(): void
+    {
+        $beer = Ingredient::create([
+            'name' => 'Yuengling',
+            // Already filed correctly, so recategorise has nothing to change.
+            'category' => IngredientCategory::Beverage,
+            'shelf_life_days' => 180,
+        ]);
+
+        $flag = \App\Models\InventoryFlag::create([
+            'ingredient_id' => $beer->id,
+            'has_stock' => true,
+            'acquired_on' => '2026-09-05',
+            // Cached back when it was wrongly filed as produce.
+            'expires_on' => '2026-09-11',
+        ]);
+
+        $this->artisan('ingredients:recategorise --apply')->assertSuccessful();
+        $this->assertSame('2026-09-11', $flag->fresh()->expires_on->toDateString());
+
+        $this->artisan('ingredients:recategorise --refresh-dates')->assertSuccessful();
+        $this->assertSame('2027-03-04', $flag->fresh()->expires_on->toDateString());
+    }
+
+    /**
      * An unrecognised ingredient must still take part in use-by tracking, or it
      * silently opts out of the feature the app exists for.
      */

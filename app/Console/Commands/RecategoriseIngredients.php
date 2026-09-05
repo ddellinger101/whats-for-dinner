@@ -22,12 +22,21 @@ class RecategoriseIngredients extends Command
 {
     protected $signature = 'ingredients:recategorise
         {--apply : Actually write the changes}
-        {--keep-shelf-life : Change the category but leave the shelf life as it is}';
+        {--keep-shelf-life : Change the category but leave the shelf life as it is}
+        {--refresh-dates : Recompute every pantry use-by date from current shelf lives}';
 
     protected $description = 'Re-derive ingredient categories and shelf lives';
 
     public function handle(IngredientCategoryGuesser $guesser): int
     {
+        // Offered separately because the per-change refresh below only fires
+        // for ingredients whose category moved in this run. Anything corrected
+        // in an earlier run keeps its stale cached date forever otherwise —
+        // which is exactly what happened.
+        if ($this->option('refresh-dates')) {
+            return $this->refreshAllDates();
+        }
+
         $changes = [];
 
         foreach (Ingredient::orderBy('name')->get() as $ingredient) {
@@ -103,6 +112,47 @@ class RecategoriseIngredients extends Command
         if ($refreshed > 0) {
             $this->info("Refreshed the use-by date on {$refreshed} pantry ".str('item')->plural($refreshed).'.');
         }
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Recompute every pantry expiry from when the item was acquired and what
+     * its ingredient's shelf life says now. Dated from the acquisition, not
+     * from today, so nothing gains or loses days it never had.
+     */
+    private function refreshAllDates(): int
+    {
+        $flags = InventoryFlag::query()
+            ->with('ingredient')
+            ->whereNotNull('acquired_on')
+            ->get()
+            ->filter(fn (InventoryFlag $flag) => $flag->ingredient !== null);
+
+        $changed = 0;
+
+        foreach ($flags as $flag) {
+            $correct = $flag->acquired_on->copy()->addDays($flag->ingredient->shelf_life_days);
+
+            if ($flag->expires_on?->equalTo($correct)) {
+                continue;
+            }
+
+            $this->line(sprintf(
+                '  %-34s %s -> %s',
+                $flag->ingredient->name,
+                $flag->expires_on?->format('j M Y') ?? 'none',
+                $correct->format('j M Y'),
+            ));
+
+            $flag->update(['expires_on' => $correct]);
+            $changed++;
+        }
+
+        $this->newLine();
+        $this->info($changed === 0
+            ? 'Every pantry date already matches its shelf life.'
+            : "Refreshed {$changed} pantry ".str('date')->plural($changed).'.');
 
         return self::SUCCESS;
     }
