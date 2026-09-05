@@ -20,7 +20,7 @@
                  than directly on the gradient, which would show as a white box. --}}
             <a href="{{ url('/') }}" class="inline-flex items-center gap-3 group">
                 <span class="grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-black/5">
-                    <img src="{{ asset('logo-mark.png') }}" alt="" width="44" height="44" class="size-11">
+                    <img src="{{ asset('logo-mark-96.png') }}" alt="" width="44" height="44" class="size-11">
                 </span>
                 <span class="text-sm font-medium text-brand-100 group-hover:text-white">
                     What&rsquo;s For Dinner
