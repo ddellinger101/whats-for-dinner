@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\GoogleController;
 use App\Http\Controllers\GroceryController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\MealPlanController;
 use App\Http\Controllers\PantryController;
 use App\Http\Controllers\RecipeController;
@@ -44,6 +46,18 @@ Route::middleware('auth')->group(function () {
     Route::get('/', HomeController::class)->name('home');
 
     Route::get('/tonight', TonightController::class)->name('tonight');
+
+    Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
+    Route::post('/settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::post('/settings/schedule', [SettingsController::class, 'updateSchedule'])->name('settings.schedule');
+
+    // Spec 4.8. The callback path has to match what is registered on the OAuth
+    // client exactly, so it lives at the root rather than under /settings.
+    Route::get('/settings/google/connect', [GoogleController::class, 'connect'])->name('google.connect');
+    Route::get('/auth/google/callback', [GoogleController::class, 'callback'])->name('google.callback');
+    Route::post('/settings/google/calendar', [GoogleController::class, 'selectCalendar'])->name('google.calendar');
+    Route::post('/settings/google/disconnect', [GoogleController::class, 'disconnect'])->name('google.disconnect');
+    Route::post('/settings/google/backfill', [GoogleController::class, 'backfill'])->name('google.backfill');
 
     Route::get('/plan', [MealPlanController::class, 'index'])->name('plan');
     Route::get('/plan/{date}/{slot}/add', [MealPlanController::class, 'picker'])->name('plan.picker');

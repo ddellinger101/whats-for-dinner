@@ -35,4 +35,16 @@ return [
         ],
     ],
 
+    /*
+     * Google Calendar, for the one-way meal push in spec 4.8. The redirect
+     * defaults to APP_URL so it is right in both environments without a second
+     * variable to keep in step — it only has to match what is registered on the
+     * OAuth client.
+     */
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI', env('APP_URL').'/auth/google/callback'),
+    ],
+
 ];

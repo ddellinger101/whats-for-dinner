@@ -29,4 +29,24 @@ enum MealSlot: string
     {
         return $this === self::Dinner;
     }
+
+    /**
+     * When the calendar event lands (spec 4.8). Timed rather than all-day, so a
+     * week of meals reads as a schedule instead of three banners per day.
+     *
+     * @return array{0: int, 1: int} Hour and minute.
+     */
+    public function defaultTime(): array
+    {
+        return match ($this) {
+            self::Breakfast => [8, 0],
+            self::Lunch => [12, 30],
+            self::Dinner => [18, 0],
+        };
+    }
+
+    public function durationMinutes(): int
+    {
+        return $this === self::Dinner ? 60 : 30;
+    }
 }

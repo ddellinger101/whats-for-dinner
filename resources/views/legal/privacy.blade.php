@@ -19,12 +19,17 @@
 
     <h2 class="pt-2 text-xl font-semibold text-ink-900">Google account data</h2>
     <p>
-        With permission, this app connects to Google Calendar using the
-        <code class="rounded bg-ink-100 px-1.5 py-0.5 text-sm">calendar.events</code>
-        scope. It uses that access for one purpose only: to create and update
-        meal events on a calendar chosen by the household. The connection is
-        one-way. The app does not read a calendar back into itself, and it does
-        not access Gmail, Drive, contacts, or any other Google service.
+        With permission, this app connects to Google Calendar using two scopes:
+        <code class="rounded bg-ink-100 px-1.5 py-0.5 text-sm">calendar.events</code>,
+        to create and update meal events, and
+        <code class="rounded bg-ink-100 px-1.5 py-0.5 text-sm">calendar.calendarlist.readonly</code>,
+        which shows only the <em>names</em> of your calendars so you can pick which
+        one meals go on. The second grants no access to the contents of any calendar.
+    </p>
+    <p>
+        The connection is one-way: the app writes meal events and never reads a
+        calendar back into itself. It does not access Gmail, Drive, contacts, or
+        any other Google service.
     </p>
     <p>
         Only an access token and refresh token are stored, so the app can write

@@ -12,7 +12,7 @@ class HouseholdSetting extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'kids_this_weekend', 'shopping_day_of_week', 'diet_mode', 'google_calendar_id',
+        'kids_this_weekend', 'shopping_day_of_week', 'diet_mode', 'google_calendar_id', 'timezone',
     ];
 
     protected function casts(): array

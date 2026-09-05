@@ -12,7 +12,9 @@ class MealPlanEntry extends Model
 {
     use HasFactory, HasUuids;
 
-    protected $fillable = ['date', 'slot', 'household_size_used', 'servings_manually_set'];
+    protected $fillable = [
+        'date', 'slot', 'household_size_used', 'servings_manually_set', 'google_event_id',
+    ];
 
     protected function casts(): array
     {

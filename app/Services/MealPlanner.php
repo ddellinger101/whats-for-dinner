@@ -6,6 +6,8 @@ use App\Enums\ComponentType;
 use App\Enums\IngredientsStatus;
 use App\Enums\MealSlot;
 use App\Jobs\ImportRecipeDetails;
+use App\Jobs\SyncMealToCalendar;
+use App\Models\GoogleCredential;
 use App\Models\MealComponent;
 use App\Models\MealPlanEntry;
 use App\Models\Recipe;
@@ -67,6 +69,7 @@ class MealPlanner
             $this->grocery->addForComponent($component);
 
             $this->requestIngredientsIfMissing($recipe);
+            $this->pushToCalendar($entry);
 
             return $component;
         });
@@ -119,6 +122,7 @@ class MealPlanner
             // Sides deliberately skip use-by tracking (spec 4.1) but still
             // contribute to the grocery list (spec 4.6).
             $this->grocery->addForComponent($component);
+            $this->pushToCalendar($entry);
 
             return $component;
         });
@@ -129,10 +133,32 @@ class MealPlanner
      */
     public function removeComponent(MealComponent $component): void
     {
-        DB::transaction(function () use ($component) {
+        $entry = $component->mealPlanEntry;
+
+        DB::transaction(function () use ($component, $entry) {
             $this->grocery->removeForComponent($component);
             $component->delete();
+
+            // Emptying a slot has to reach the calendar too, or a meal that was
+            // cancelled goes on sitting in everyone's diary.
+            if ($entry) {
+                $this->pushToCalendar($entry);
+            }
         });
+    }
+
+    /**
+     * Spec 4.8. Queued and deferred until commit: the slot must fill instantly
+     * whether or not Google is reachable, and the worker must not read a plan
+     * that has not been written yet.
+     */
+    private function pushToCalendar(MealPlanEntry $entry): void
+    {
+        if (! GoogleCredential::current()->isReady()) {
+            return;
+        }
+
+        SyncMealToCalendar::dispatch($entry->id)->afterCommit();
     }
 
     /**
