@@ -36,8 +36,15 @@ echo "==> Storage permissions"
 # creates under storage is unwritable to it by default — which silently broke
 # photo uploads. setgid on the directories makes new subdirectories inherit the
 # group instead of repeating the problem the next time one is created.
-find storage -type d -exec chmod 2775 {} +
-chmod -R g+w storage bootstrap/cache
+#
+# Restricted to what this user owns. Photos the web server wrote belong to it,
+# not to us, so chmod on those can only ever fail — and under `set -e` that
+# aborted the deploy before the caches were rebuilt, leaving the server running
+# new code against an old route cache. They are already writable by their owner,
+# so skipping them costs nothing.
+me="$(id -un)"
+find storage -type d -user "$me" -exec chmod 2775 {} +
+find storage bootstrap/cache -user "$me" -exec chmod g+w {} +
 
 echo "==> Rebuilding caches"
 php artisan optimize:clear >/dev/null
