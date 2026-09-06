@@ -132,9 +132,15 @@ class RecategoriseIngredients extends Command
         $changed = 0;
 
         foreach ($flags as $flag) {
-            $correct = $flag->acquired_on->copy()->addDays($flag->ingredient->shelf_life_days);
+            // The spice rack does not expire, so the right date for it is no
+            // date. Computing one from its shelf life gave all forty-two jars
+            // an expiry a year out, which is wrong in kind rather than by a
+            // few days.
+            $correct = $flag->ingredient->isStaple()
+                ? null
+                : $flag->acquired_on->copy()->addDays($flag->ingredient->shelf_life_days);
 
-            if ($flag->expires_on?->equalTo($correct)) {
+            if ($correct === null ? $flag->expires_on === null : $flag->expires_on?->equalTo($correct)) {
                 continue;
             }
 
@@ -142,7 +148,7 @@ class RecategoriseIngredients extends Command
                 '  %-34s %s -> %s',
                 $flag->ingredient->name,
                 $flag->expires_on?->format('j M Y') ?? 'none',
-                $correct->format('j M Y'),
+                $correct?->format('j M Y') ?? 'never',
             ));
 
             $flag->update(['expires_on' => $correct]);

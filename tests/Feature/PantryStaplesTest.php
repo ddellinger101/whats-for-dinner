@@ -300,6 +300,24 @@ class PantryStaplesTest extends TestCase
         );
     }
 
+    /**
+     * Recomputing every use-by date from shelf life gave all forty-two jars an
+     * expiry a year out. The right date for something that does not expire is
+     * no date.
+     */
+    public function test_refreshing_dates_leaves_the_rack_without_one(): void
+    {
+        $this->artisan('pantry:staples')->assertSuccessful();
+        $this->artisan('ingredients:recategorise --apply --refresh-dates')->assertSuccessful();
+
+        $stapleIds = Ingredient::where('is_staple', true)->pluck('id');
+
+        $this->assertSame(
+            0,
+            InventoryFlag::whereIn('ingredient_id', $stapleIds)->whereNotNull('expires_on')->count(),
+        );
+    }
+
     public function test_the_pantry_page_lists_the_rack_separately(): void
     {
         $this->artisan('pantry:staples')->assertSuccessful();
