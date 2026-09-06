@@ -38,7 +38,17 @@ class PantryController extends Controller
 
         $atRiskIds = $this->inventory->atRiskIngredientIds($today)->all();
 
+        // The spice rack is listed on its own rather than scattered through
+        // the categories. Forty jars would otherwise bury the dozen things
+        // that actually change week to week, and none of them need the
+        // amount-and-expiry controls the other rows carry.
+        $staples = $inStock->filter(fn (InventoryFlag $flag) => $flag->ingredient->isStaple());
+        $inStock = $inStock->reject(fn (InventoryFlag $flag) => $flag->ingredient->isStaple());
+
         return view('pantry.index', [
+            'staples' => $staples
+                ->sortBy(fn (InventoryFlag $flag) => mb_strtolower($flag->ingredient->name))
+                ->values(),
             // Anything going off soon leads, because that is the whole reason
             // to look at this screen before planning a meal.
             'atRisk' => $inStock

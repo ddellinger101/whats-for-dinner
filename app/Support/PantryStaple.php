@@ -1,0 +1,32 @@
+<?php
+
+namespace App\Support;
+
+/**
+ * One jar on the spice rack.
+ */
+class PantryStaple
+{
+    /**
+     * @param  list<string>  $aliases  Other ways recipes write this. Matched
+     *                                 whole, never as substrings, so "garlic
+     *                                 cloves" cannot be read as "cloves".
+     * @param  bool  $betterFresh  Whether the fresh form is the better one when
+     *                             a recipe does not say which it wants.
+     */
+    public function __construct(
+        public readonly string $name,
+        public readonly string $kind,
+        public readonly array $aliases = [],
+        public readonly bool $betterFresh = false,
+    ) {}
+
+    /** @return list<string> */
+    public function allNames(): array
+    {
+        return array_values(array_unique(array_map(
+            fn (string $n) => mb_strtolower($n),
+            [$this->name, ...$this->aliases],
+        )));
+    }
+}

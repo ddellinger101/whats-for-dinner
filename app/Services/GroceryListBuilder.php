@@ -51,7 +51,13 @@ class GroceryListBuilder
             // Spec 4.6: an ingredient flagged as in stock is skipped here. It is
             // still shown in the recipe view with a "from freezer" note, which is
             // a display concern, not a list one.
-            ->reject(fn ($ingredient) => $ingredient->hasStock())
+            //
+            // Spice-rack staples are skipped for the same reason but on
+            // standing grounds rather than this week's observation: a recipe
+            // wanting half a teaspoon of paprika is not a reason to buy
+            // paprika. Anything a recipe asks for fresh never reaches here —
+            // it resolves to its own produce row, which is not a staple.
+            ->reject(fn ($ingredient) => $ingredient->hasStock() || $ingredient->isStaple())
             ->map(function ($ingredient) use ($component, $multiplier, $recipe, $addedOn) {
                 $perServing = $ingredient->pivot->quantity_per_serving;
 

@@ -6,7 +6,6 @@ use App\Models\GroceryListItem;
 use App\Models\Ingredient;
 use App\Models\InventoryFlag;
 use App\Models\Recipe;
-use App\Services\IngredientResolver;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -73,7 +72,9 @@ class InventoryService
                 'quantity' => $quantity,
                 'unit' => $item->unit ?? $existing?->unit ?? $ingredient->default_unit,
                 'acquired_on' => $on,
-                'expires_on' => $on->copy()->addDays($ingredient->shelf_life_days),
+                'expires_on' => $ingredient->isStaple()
+                    ? null
+                    : $on->copy()->addDays($ingredient->shelf_life_days),
                 'last_updated' => now(),
             ],
         );
@@ -129,6 +130,14 @@ class InventoryService
             $recipe->loadMissing('ingredients');
 
             foreach ($recipe->ingredients as $ingredient) {
+                // Cooking does not empty the spice rack in any sense the app
+                // should track. Draining a jar a teaspoon at a time would
+                // eventually mark it gone and put it back on the list, which
+                // is the whole thing staples exist to prevent.
+                if ($ingredient->isStaple()) {
+                    continue;
+                }
+
                 $flag = InventoryFlag::where('ingredient_id', $ingredient->id)->inStock()->first();
 
                 if (! $flag) {
@@ -189,7 +198,11 @@ class InventoryService
                 'quantity' => $quantity,
                 'unit' => $unit ?? $ingredient->default_unit,
                 'acquired_on' => $acquiredOn,
-                'expires_on' => $acquiredOn->copy()->addDays($ingredient->shelf_life_days),
+                // The user's words: these won't expire. A date here would put
+                // the spice rack in the "use these up" list.
+                'expires_on' => $ingredient->isStaple()
+                    ? null
+                    : $acquiredOn->copy()->addDays($ingredient->shelf_life_days),
                 'note' => $note,
                 'last_updated' => now(),
             ],

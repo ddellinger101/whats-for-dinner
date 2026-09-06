@@ -126,8 +126,25 @@
                         @endphp
                         <li class="flex items-center gap-3 py-2 text-sm">
                             <span class="w-24 shrink-0 font-medium text-ink-900">{{ $total ?? '—' }}</span>
-                            <span class="min-w-0 flex-1 text-ink-800">{{ $ingredient->name }}</span>
-                            @if ($ingredient->hasStock())
+                            <span class="min-w-0 flex-1 text-ink-800">
+                                {{ $ingredient->name }}
+                                {{-- The recipe did not say fresh or dried, so
+                                     the jar was assumed and no grocery line
+                                     was raised. Said here rather than acted
+                                     on, because which one to use is the
+                                     cook's call, not the app's. --}}
+                                @if ($ingredient->betterFresh())
+                                    <span class="whitespace-nowrap text-xs text-leaf-600"
+                                          title="The jar is assumed, so this is not on the grocery list. Add it there yourself to buy it fresh.">
+                                        &#10022; better fresh
+                                    </span>
+                                @endif
+                            </span>
+                            @if ($ingredient->isStaple())
+                                <span class="shrink-0 rounded bg-ink-100 px-1.5 py-0.5 text-[11px] font-medium text-ink-600">
+                                    spice rack
+                                </span>
+                            @elseif ($ingredient->hasStock())
                                 <span class="shrink-0 rounded bg-ink-100 px-1.5 py-0.5 text-[11px] font-medium text-ink-600">
                                     in stock
                                 </span>

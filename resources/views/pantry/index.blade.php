@@ -70,6 +70,35 @@
         </section>
     @endforeach
 
+    {{-- Collapsed, and last. Forty jars that never change would otherwise
+         bury the dozen things that do. --}}
+    @if ($staples->isNotEmpty())
+        <details class="mt-6">
+            <summary class="cursor-pointer list-none px-1 text-xs font-semibold uppercase tracking-wide text-ink-400">
+                Spice rack &middot; {{ $staples->count() }}
+                <span class="font-normal normal-case tracking-normal text-ink-400">
+                    &mdash; always in, never listed
+                </span>
+            </summary>
+            <ul class="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 rounded-2xl border border-ink-200 bg-white/60
+                       px-4 py-3 sm:grid-cols-3">
+                @foreach ($staples as $flag)
+                    <li class="flex items-baseline gap-1.5 py-0.5 text-sm text-ink-700">
+                        <span>{{ $flag->ingredient->name }}</span>
+                        @if ($flag->ingredient->betterFresh())
+                            <span class="text-xs text-leaf-600" title="Better with fresh">&#10022;</span>
+                        @endif
+                    </li>
+                @endforeach
+            </ul>
+            <p class="mt-1.5 px-1 text-xs text-ink-400">
+                These never expire and no recipe adds them to the grocery list. A recipe asking
+                for <em>fresh</em> herbs still does &mdash; &#10022; marks the ones worth buying fresh
+                when a recipe does not say.
+            </p>
+        </details>
+    @endif
+
     @if ($recentlyUsed->isNotEmpty())
         <details class="mt-6">
             <summary class="cursor-pointer list-none px-1 text-xs font-semibold uppercase tracking-wide text-ink-400">

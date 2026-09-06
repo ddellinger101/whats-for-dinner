@@ -120,8 +120,10 @@ class ManualIngredientEntryTest extends TestCase
 
         $this->assertCount(6, $ingredients, 'all six lines should become ingredients');
 
+        // Three of the six are spice-rack jars, so they resolve to the label on
+        // the jar rather than to however this site happened to write them.
         $this->assertSame(
-            ['Dill', 'Heavy cream', 'Parsley', 'Red pepper flakes', 'Thyme dried', 'White wine'],
+            ['Crushed red pepper', 'Dill', 'Heavy cream', 'Parsley flakes', 'Thyme leaves', 'White wine'],
             $ingredients->pluck('name')->sort()->values()->all(),
         );
 
