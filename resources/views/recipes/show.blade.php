@@ -286,7 +286,10 @@
             {{-- ---------------------------------------------------- rating --}}
             <form method="POST" action="{{ route('recipes.rate', $recipe) }}" class="mt-5 border-t border-ink-100 pt-4">
                 @csrf
-                <h2 class="text-sm font-semibold text-ink-900">Rating</h2>
+                {{-- Named for both, since the notes box lives in this form and
+                     saving one without the other is normal. --}}
+                <h2 class="text-sm font-semibold text-ink-900">Rating &amp; notes</h2>
+                <p class="mt-0.5 text-xs text-ink-400">Either on its own is fine.</p>
                 <div class="mt-2 flex flex-wrap gap-2">
                     {{-- Pairs, not an enum-keyed map: PHP array keys can only be
                          int or string, never an enum instance. --}}

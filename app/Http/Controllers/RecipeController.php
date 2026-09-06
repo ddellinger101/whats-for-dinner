@@ -186,16 +186,23 @@ class RecipeController extends Controller
     public function rate(Request $request, Recipe $recipe): RedirectResponse
     {
         $validated = $request->validate([
-            'rating' => ['required', 'string', 'in:'.implode(',', array_column(Rating::cases(), 'value'))],
+            // Never required. The rating radios share a form with the notes box,
+            // so demanding one meant a recipe nobody had cooked yet — every
+            // freshly added one — could not have a note saved against it.
+            'rating' => ['nullable', 'string', 'in:'.implode(',', array_column(Rating::cases(), 'value'))],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
+        $rated = filled($validated['rating'] ?? null);
+
         $recipe->update([
-            'rating' => Rating::from($validated['rating']),
-            'notes' => $validated['notes'] ?? $recipe->notes,
+            'rating' => $rated ? Rating::from($validated['rating']) : $recipe->rating,
+            // array_key_exists, not ??: a submitted-but-empty box means "clear
+            // this", while an absent key means the form never offered one.
+            'notes' => array_key_exists('notes', $validated) ? $validated['notes'] : $recipe->notes,
         ]);
 
-        return back()->with('status', 'Rating saved.');
+        return back()->with('status', $rated ? 'Rating saved.' : 'Saved.');
     }
 
     /**

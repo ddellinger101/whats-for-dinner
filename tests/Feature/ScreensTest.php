@@ -367,6 +367,53 @@ class ScreensTest extends TestCase
         $this->assertStringContainsString('more salt', $recipe->notes);
     }
 
+    /**
+     * A rating is never required. The radios share a form with the notes box,
+     * so requiring one meant nothing could be written about a recipe until
+     * somebody had cooked it — including every recipe just added.
+     */
+    public function test_notes_can_be_saved_without_choosing_a_rating(): void
+    {
+        $recipe = $this->makeRecipe('Newly Added');
+        $this->assertSame(Rating::Unrated, $recipe->rating);
+
+        $this->actingAs($this->user)
+            ->post(route('recipes.rate', $recipe), ['notes' => 'Looks promising, try it Thursday.'])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $recipe->refresh();
+        $this->assertSame('Looks promising, try it Thursday.', $recipe->notes);
+        // And the rating is left exactly as it was.
+        $this->assertSame(Rating::Unrated, $recipe->rating);
+    }
+
+    /** Rating something must not wipe the note already written about it. */
+    public function test_rating_without_notes_keeps_the_existing_note(): void
+    {
+        $recipe = $this->makeRecipe('Dinner');
+        $recipe->update(['notes' => 'Needs more salt.']);
+
+        $this->actingAs($this->user)
+            ->post(route('recipes.rate', $recipe), ['rating' => Rating::ThumbsUp->value]);
+
+        $recipe->refresh();
+        $this->assertSame(Rating::ThumbsUp, $recipe->rating);
+        $this->assertSame('Needs more salt.', $recipe->notes);
+    }
+
+    /** An emptied box means "clear it", not "leave it alone". */
+    public function test_a_note_can_be_cleared(): void
+    {
+        $recipe = $this->makeRecipe('Dinner');
+        $recipe->update(['notes' => 'Old note.']);
+
+        $this->actingAs($this->user)
+            ->post(route('recipes.rate', $recipe), ['rating' => Rating::JustOk->value, 'notes' => '']);
+
+        $this->assertNull($recipe->fresh()->notes);
+    }
+
     /** Spec 4.2.5: marking as made moves both the count and the recency clock. */
     public function test_marking_a_recipe_as_made_updates_history(): void
     {
