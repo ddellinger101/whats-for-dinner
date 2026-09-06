@@ -121,6 +121,20 @@ class TaggingTest extends TestCase
     }
 
     /**
+     * Grilling is a method, and steak is not one — it is usually seared in
+     * cast iron and finished in the oven. As a keyword it also caught every
+     * word containing it, which is how a cheesesteak soup came out grilled.
+     */
+    public function test_steak_alone_does_not_mean_grilling(): void
+    {
+        $this->assertNotContains('grilling', $this->guessTags('Cast Iron Ribeye Steak'));
+        $this->assertNotContains('grilling', $this->guessTags('Keto cheesesteak soup'));
+
+        // Said outright, it still counts.
+        $this->assertContains('grilling', $this->guessTags('Grilled Ribeye Steak'));
+    }
+
+    /**
      * Spanish and Mexican share a great deal of vocabulary, and tags are
      * additive, so a keyword either owns can quietly tag both. Paella is
      * Spanish alone; chorizo belongs to either and so tags neither.
@@ -249,6 +263,37 @@ class TaggingTest extends TestCase
         $tags = $recipe->fresh()->category_tags;
         $this->assertTrue($tags->contains(CategoryTag::Holiday));
         $this->assertTrue($tags->contains(CategoryTag::Mexican));
+    }
+
+    /**
+     * Retiring a keyword leaves behind every tag it already wrote, and this
+     * command only ever adds. --drop clears up after one retired keyword
+     * without --replace's cost of discarding hand-set tags too.
+     */
+    public function test_drop_removes_a_tag_the_guesser_no_longer_infers(): void
+    {
+        // Was tagged Grilling back when "steak" was a grilling keyword.
+        $stale = $this->recipeWith('Steak & Asparagus');
+        $stale->update(['category_tags' => [
+            CategoryTag::Grilling->value,
+            CategoryTag::Holiday->value,
+        ]]);
+
+        // Still grilled, so it must keep the tag.
+        $genuine = $this->recipeWith('Grilled Ribeye');
+        $genuine->update(['category_tags' => [CategoryTag::Grilling->value]]);
+
+        $this->artisan('recipes:autotag --drop=grilling --skip-protein')->assertSuccessful();
+
+        $this->assertFalse($stale->fresh()->category_tags->contains(CategoryTag::Grilling));
+        // Untouched: --drop names one tag and takes nothing else with it.
+        $this->assertTrue($stale->fresh()->category_tags->contains(CategoryTag::Holiday));
+        $this->assertTrue($genuine->fresh()->category_tags->contains(CategoryTag::Grilling));
+    }
+
+    public function test_drop_rejects_something_that_is_not_a_tag(): void
+    {
+        $this->artisan('recipes:autotag --drop=grillng')->assertFailed();
     }
 
     public function test_dry_run_writes_nothing(): void

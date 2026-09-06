@@ -18,6 +18,7 @@ class AutoTagRecipes extends Command
         {--dry-run : Show what would change without writing}
         {--replace : Replace existing tags instead of adding to them}
         {--skip-protein : Leave protein types alone}
+        {--drop=* : Remove this tag where the guesser no longer infers it}
         {--limit=0 : Only process this many recipes}';
 
     protected $description = 'Infer category tags and protein for recipes from their names, ingredients and links';
@@ -27,6 +28,26 @@ class AutoTagRecipes extends Command
         $dryRun = (bool) $this->option('dry-run');
         $replace = (bool) $this->option('replace');
         $limit = (int) $this->option('limit');
+
+        /*
+         * Retiring a keyword leaves the tags it already wrote behind, because
+         * this command only ever adds. --drop clears up after exactly one of
+         * them: --replace would do it too, but by discarding every tag set by
+         * hand along with it, which is not a trade worth making.
+         */
+        $drop = [];
+
+        foreach ((array) $this->option('drop') as $value) {
+            $tag = CategoryTag::tryFrom($value);
+
+            if (! $tag) {
+                $this->error("Not a tag: {$value}");
+
+                return self::FAILURE;
+            }
+
+            $drop[] = $tag;
+        }
 
         $recipes = Recipe::query()
             ->with('ingredients:id,name')
@@ -53,6 +74,14 @@ class AutoTagRecipes extends Command
             $merged = $replace
                 ? $guessed
                 : collect($existing)->merge($guessed)->unique()->values()->all();
+
+            // Only where the guesser has stopped inferring it: a recipe the
+            // keyword still fits keeps the tag.
+            $merged = collect($merged)
+                ->reject(fn (CategoryTag $tag) => in_array($tag, $drop, true)
+                    && ! in_array($tag, $guessed, true))
+                ->values()
+                ->all();
 
             // The keto flag and the keto tag are two views of one fact
             // (spec 3), so keep them consistent in both directions.

@@ -86,9 +86,13 @@ class RecipeTagGuesser
                 'thanksgiving', 'christmas', 'easter', 'holiday', 'stuffing',
                 'cranberry', 'prime rib', 'glazed ham', 'green bean casserole',
             ],
+            // Every keyword here names a method, not an ingredient. "Steak" was
+            // the exception and it was wrong: steak is usually seared in cast
+            // iron and finished in the oven, and it dragged in anything merely
+            // containing the word — a cheesesteak soup came out tagged Grilling.
             CategoryTag::Grilling->value => [
                 'grill', 'grilled', 'bbq', 'barbecue', 'kebab', 'kabob', 'skewer',
-                'smoked', 'hasselback', 'steak',
+                'smoked', 'hasselback',
             ],
             CategoryTag::Appetizer->value => [
                 'dip', 'wings', 'appetizer', 'bites', 'poppers', 'bruschetta',
