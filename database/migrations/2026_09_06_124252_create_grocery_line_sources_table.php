@@ -33,7 +33,11 @@ return new class extends Migration
 
             // A meal contributes to a line once; a second helping of the same
             // ingredient adds to the amount rather than making another row.
-            $table->unique(['grocery_list_item_id', 'meal_component_id']);
+            //
+            // Named, because the one Laravel derives from these two columns is
+            // 66 characters and MySQL stops at 64. SQLite accepted it, so this
+            // only surfaced on the server.
+            $table->unique(['grocery_list_item_id', 'meal_component_id'], 'grocery_line_sources_unique');
         });
 
         foreach (DB::table('grocery_list_items')->whereNotNull('source_component_id')->get() as $item) {
