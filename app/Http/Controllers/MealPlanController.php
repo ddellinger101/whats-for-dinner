@@ -35,7 +35,11 @@ class MealPlanController extends Controller
         $days = collect(range(0, 6))->map(fn (int $offset) => $weekStart->copy()->addDays($offset));
 
         $entries = MealPlanEntry::query()
-            ->with(['components.recipe', 'components.simpleItem'])
+            // Ingredients come along because tapping a planned meal opens its
+            // recipe in place. A week is a dozen or so recipes, which is far
+            // cheaper than a round trip per tap — and the images inside the
+            // closed dialogs are lazy, so none of them load until one is opened.
+            ->with(['components.recipe.ingredients', 'components.simpleItem'])
             ->whereBetween('date', [$weekStart->toDateString(), $weekStart->copy()->addDays(6)->toDateString()])
             ->get()
             // Keyed by "Y-m-d|slot" so the grid can look a slot up directly.

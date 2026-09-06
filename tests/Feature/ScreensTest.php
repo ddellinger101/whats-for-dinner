@@ -17,6 +17,7 @@ use App\Models\Recipe;
 use App\Models\SimpleItem;
 use App\Models\User;
 use App\Services\MealPlanner;
+use Database\Seeders\HouseholdSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -33,7 +34,7 @@ class ScreensTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\HouseholdSeeder::class);
+        $this->seed(HouseholdSeeder::class);
         $this->user = User::factory()->create();
     }
 
@@ -147,6 +148,53 @@ class ScreensTest extends TestCase
         foreach (MealSlot::ordered() as $slot) {
             $response->assertSee($slot->label());
         }
+    }
+
+    /**
+     * A planned meal was a label with a remove button and nothing else — there
+     * was no way to see what was in it without hunting the recipe down. It now
+     * opens in place, with the amounts scaled to what this slot is planned for
+     * rather than to the recipe's own yield.
+     */
+    public function test_a_planned_meal_opens_its_recipe_in_place(): void
+    {
+        $recipe = $this->makeRecipe('Chicken Bake', ['Double cream']);
+        $recipe->update(['instructions' => ['Heat the oven', 'Bake for an hour']]);
+
+        // Four servings at half a cup each; planned for eight, so a full litre.
+        $component = (new MealPlanner)->setPrimaryRecipe(
+            Carbon::parse(self::WEDNESDAY),
+            MealSlot::Dinner,
+            $recipe,
+            8,
+        );
+
+        $response = $this->actingAs($this->user)
+            ->get(route('plan', ['start' => '2026-09-06']))
+            ->assertOk();
+
+        $response->assertSee("meal-{$component->id}", false);
+        $response->assertSee('Double cream');
+        $response->assertSee('Bake for an hour');
+        $response->assertSee('4 cup');
+        $response->assertSee('Open the full recipe');
+    }
+
+    /** A bought item has no recipe, so it says what it puts on the list. */
+    public function test_a_planned_simple_item_shows_what_it_buys(): void
+    {
+        $item = SimpleItem::create([
+            'name' => 'Taco Night',
+            'grocery_breakdown' => ['Tortillas', 'Ground beef', 'Cheddar'],
+        ]);
+
+        (new MealPlanner)->addSide(Carbon::parse(self::WEDNESDAY), MealSlot::Dinner, $item);
+
+        $this->actingAs($this->user)
+            ->get(route('plan', ['start' => '2026-09-06']))
+            ->assertOk()
+            ->assertSee('Tortillas')
+            ->assertSee('bought rather than cooked');
     }
 
     public function test_the_dinner_picker_shows_ranked_suggestions(): void

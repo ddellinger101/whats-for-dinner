@@ -88,7 +88,16 @@
                                                    {{ $component->is_primary
                                                        ? 'bg-brand-600 font-medium text-white'
                                                        : 'bg-ink-100 text-ink-800' }}">
-                                            <span class="truncate">{{ $component->displayName() }}</span>
+                                            {{-- The name opens the meal; only
+                                                 the × removes it. Two targets
+                                                 in one chip, so the tap areas
+                                                 stay separate. --}}
+                                            <button type="button"
+                                                    onclick="document.getElementById('meal-{{ $component->id }}').showModal()"
+                                                    class="min-w-0 truncate text-left underline-offset-2 hover:underline"
+                                                    aria-label="Show {{ $component->displayName() }}">
+                                                {{ $component->displayName() }}
+                                            </button>
                                             <form method="POST"
                                                   action="{{ route('plan.component.remove', $component) }}"
                                                   class="shrink-0">
@@ -106,6 +115,12 @@
                                                     </svg>
                                                 </button>
                                             </form>
+
+                                            @include('plan.detail', [
+                                                'component' => $component,
+                                                'day' => $day,
+                                                'slot' => $slot,
+                                            ])
                                         </li>
                                     @endforeach
                                 </ul>
