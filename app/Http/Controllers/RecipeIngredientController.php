@@ -172,7 +172,15 @@ class RecipeIngredientController extends Controller
         $file = $request->file('photo');
         $path = 'recipes/'.$recipe->id.'-photo.'.$file->extension();
 
-        Storage::disk('public')->put($path, $file->get());
+        // Checked, not assumed. An unwritable directory made put() return false
+        // while the recipe was still updated to point at the file, so the app
+        // recorded a photo that had never been saved and rendered a broken
+        // image with no error anywhere.
+        if (! Storage::disk('public')->put($path, $file->get())) {
+            return back()->withErrors([
+                'photo' => 'The photo could not be saved on the server. Nothing has been changed.',
+            ]);
+        }
 
         $previous = $recipe->image_path;
 

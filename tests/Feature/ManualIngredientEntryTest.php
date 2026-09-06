@@ -233,6 +233,63 @@ class ManualIngredientEntryTest extends TestCase
         Storage::disk('public')->assertMissing($path);
     }
 
+    /**
+     * A write that fails must not leave the recipe claiming a photo. An
+     * unwritable directory did exactly that in production: put() returned
+     * false, the recipe was updated anyway, and the app served a broken image
+     * with nothing logged anywhere.
+     */
+    public function test_a_failed_write_leaves_the_recipe_untouched(): void
+    {
+        Storage::fake('public');
+        $recipe = $this->recipe();
+
+        // Stands in for the unwritable directory.
+        Storage::shouldReceive('disk')->with('public')->andReturn(
+            tap(\Mockery::mock(\Illuminate\Contracts\Filesystem\Filesystem::class), function ($disk) {
+                $disk->shouldReceive('put')->andReturn(false);
+            }),
+        );
+
+        $this->actingAs($this->user)
+            ->post(route('recipes.photo.store', $recipe), [
+                'photo' => UploadedFile::fake()->image('dinner.jpg'),
+            ])
+            ->assertSessionHasErrors('photo');
+
+        $recipe->refresh();
+        $this->assertNull($recipe->image_path);
+        $this->assertSame(ImageStatus::None, $recipe->image_status);
+    }
+
+    /** Rows recorded before that check still claim photos they never had. */
+    public function test_dangling_image_paths_can_be_found_and_cleared(): void
+    {
+        Storage::fake('public');
+
+        $good = $this->recipe();
+        $this->actingAs($this->user)->post(route('recipes.photo.store', $good), [
+            'photo' => UploadedFile::fake()->image('real.jpg'),
+        ]);
+
+        $broken = Recipe::create([
+            'name' => 'Hawaiian Meatballs',
+            'image_path' => 'recipes/never-written.webp',
+            'image_status' => ImageStatus::Uploaded,
+        ]);
+
+        $this->artisan('recipes:check-images')->assertSuccessful();
+        // Reports before it writes.
+        $this->assertNotNull($broken->fresh()->image_path);
+
+        $this->artisan('recipes:check-images --apply')->assertSuccessful();
+
+        $this->assertNull($broken->fresh()->image_path);
+        $this->assertSame(ImageStatus::None, $broken->fresh()->image_status);
+        // The one that really exists is left alone.
+        $this->assertNotNull($good->fresh()->image_path);
+    }
+
     public function test_non_images_are_rejected(): void
     {
         Storage::fake('public');

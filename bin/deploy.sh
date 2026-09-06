@@ -31,6 +31,14 @@ npm run build --silent
 echo "==> Migrations"
 php artisan migrate --force
 
+echo "==> Storage permissions"
+# The web server runs as a different user from this shell, so anything the CLI
+# creates under storage is unwritable to it by default — which silently broke
+# photo uploads. setgid on the directories makes new subdirectories inherit the
+# group instead of repeating the problem the next time one is created.
+find storage -type d -exec chmod 2775 {} +
+chmod -R g+w storage bootstrap/cache
+
 echo "==> Rebuilding caches"
 php artisan optimize:clear >/dev/null
 php artisan config:cache >/dev/null

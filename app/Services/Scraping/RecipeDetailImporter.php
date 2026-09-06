@@ -169,7 +169,14 @@ class RecipeDetailImporter
             };
 
             $path = 'recipes/'.$recipe->id.'.'.$extension;
-            Storage::disk('public')->put($path, $body);
+
+            // Same reason as the photo upload: a write that fails must not
+            // leave the recipe pointing at a file that was never created.
+            if (! Storage::disk('public')->put($path, $body)) {
+                Log::warning('Could not write a scraped recipe image', ['path' => $path]);
+
+                return;
+            }
 
             // Replacing an image leaves the old file behind otherwise, and these
             // accumulate one per re-import.
