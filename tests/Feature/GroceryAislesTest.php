@@ -8,6 +8,7 @@ use App\Enums\IngredientCategory;
 use App\Enums\IngredientsStatus;
 use App\Enums\MealSlot;
 use App\Enums\ProteinType;
+use App\Enums\Rating;
 use App\Models\GroceryListItem;
 use App\Models\Ingredient;
 use App\Models\Recipe;
@@ -15,6 +16,7 @@ use App\Models\User;
 use App\Services\GroceryListBuilder;
 use App\Services\MealPlanner;
 use App\Support\AisleGuesser;
+use Database\Seeders\HouseholdSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -31,7 +33,7 @@ class GroceryAislesTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\HouseholdSeeder::class);
+        $this->seed(HouseholdSeeder::class);
         $this->user = User::factory()->create();
     }
 
@@ -257,14 +259,55 @@ class GroceryAislesTest extends TestCase
      * Asserting on a class name is blunt, but this is a rendering bug no
      * behavioural test can see, and the clipping container is the cause.
      */
+    /**
+     * A row had four 44px tap targets across it — the tick, then aisle,
+     * already-have and remove — leaving a third of a phone's width for the
+     * name you are actually scanning for. Everything but the tick is now
+     * behind one menu.
+     */
+    public function test_a_row_carries_only_two_tap_targets(): void
+    {
+        $item = (new GroceryListBuilder)->addManual('Boneless skinless chicken breasts');
+
+        $html = $this->actingAs($this->user)->get(route('grocery'))->assertOk()->getContent();
+        $row = Str::between($html, '<li class="flex items-center', '</li>');
+
+        $this->assertSame(2, substr_count($row, 'size-tap'), 'the tick and the menu, nothing else');
+
+        // The actions are still all reachable, just one tap further in.
+        $this->assertStringContainsString(route('grocery.destroy', $item), $row);
+        $this->assertStringContainsString(route('grocery.aisle', $item), $row);
+    }
+
+    /** The name gets the first line; the amount moves down to join the meta. */
+    public function test_the_name_has_the_first_line_to_itself(): void
+    {
+        $item = (new GroceryListBuilder)->addManual('Heavy cream', 2.0, 'cup');
+
+        $html = $this->actingAs($this->user)->get(route('grocery'))->assertOk()->getContent();
+        $row = Str::between($html, '<li class="flex items-center', '</li>');
+
+        $name = strpos($row, 'Heavy cream');
+        $amount = strpos($row, 'Change how much');
+
+        $this->assertNotFalse($name);
+        $this->assertNotFalse($amount);
+        $this->assertLessThan($amount, $name, 'the name should come before the amount, not after it');
+        $this->assertStringContainsString(route('grocery.quantity', $item), $row);
+    }
+
     public function test_the_aisle_menu_is_not_inside_a_clipping_container(): void
     {
         (new GroceryListBuilder)->addManual('Bananas');
 
         $html = $this->actingAs($this->user)->get(route('grocery'))->assertOk()->getContent();
 
-        $this->assertStringContainsString('Change aisle for', $html,
-            'the aisle menu should be on the page');
+        // The aisle list lives in the row's one overflow menu now, rather than
+        // behind an icon of its own.
+        $this->assertStringContainsString('More for Bananas', $html,
+            'the row menu holding the aisles should be on the page');
+        $this->assertStringContainsString('Ready To Eat', $html,
+            'the aisle choices should be inside it');
 
         $this->assertStringNotContainsString(
             'divide-ink-100 overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm',
@@ -392,12 +435,12 @@ class GroceryAislesTest extends TestCase
         Recipe::create([
             'name' => 'Beef Stew',
             'protein_type' => ProteinType::Beef,
-            'rating' => \App\Enums\Rating::JustOk,
+            'rating' => Rating::JustOk,
         ]);
         Recipe::create([
             'name' => 'Beef Tacos',
             'protein_type' => ProteinType::Beef,
-            'rating' => \App\Enums\Rating::ThumbsUp,
+            'rating' => Rating::ThumbsUp,
         ]);
 
         $this->actingAs($this->user)

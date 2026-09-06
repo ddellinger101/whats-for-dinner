@@ -124,19 +124,29 @@
                         @endphp
 
                         <div class="min-w-0 flex-1">
-                            <div class="flex items-baseline gap-1.5">
-                                {{-- The amount is the control: the shop sells
-                                     what it sells, and changing it here is the
-                                     whole point of the line. --}}
+                            {{-- The name has the whole line to itself. It is
+                                 what you are scanning for in a shop, and it was
+                                 sharing the row with the amount and three
+                                 icons, leaving it a third of the width. --}}
+                            <p class="truncate text-sm font-medium
+                                      {{ $bought ? 'text-ink-400 line-through' : 'text-ink-900' }}">
+                                {{ $item->item_name }}
+                            </p>
+
+                            <div class="flex items-baseline gap-x-2 text-xs text-ink-400">
+                                {{-- The amount is still the control: the shop
+                                     sells what it sells, and changing it here
+                                     is the whole point of the line. Demoted to
+                                     the second line, not demoted in function. --}}
                                 <details class="relative shrink-0">
-                                    <summary class="cursor-pointer list-none rounded px-1 py-0.5 text-sm font-medium
+                                    <summary class="-ml-1 cursor-pointer list-none rounded px-1 py-0.5 font-medium
                                                     transition hover:bg-ink-100
                                                     {{ $bought ? 'text-ink-400' : 'text-ink-600' }}"
                                              aria-label="Change how much {{ $item->item_name }} to buy">
-                                        {{ $amount ?? '+' }}
+                                        {{ $amount ?? '+ amount' }}
                                     </summary>
                                     <div class="absolute left-0 z-30 mt-1 w-60 rounded-xl border border-ink-200
-                                                bg-white p-3 shadow-xl">
+                                                bg-white p-3 text-left shadow-xl">
                                         <form method="POST" action="{{ route('grocery.quantity', $item) }}">
                                             @csrf
                                             <p class="text-xs text-ink-600">How much are you buying?</p>
@@ -166,42 +176,58 @@
                                     </div>
                                 </details>
 
-                                <span class="min-w-0 flex-1 truncate text-sm font-medium
-                                             {{ $bought ? 'text-ink-400 line-through' : 'text-ink-900' }}">
-                                    {{ $item->item_name }}
+                                <span class="min-w-0 flex-1 truncate">
+                                    @if ($item->isOverBought())
+                                        {{-- Named so the extra reads as a deliberate
+                                             buy rather than a mistake. --}}
+                                        <span class="text-leaf-600">
+                                            {{ rtrim(rtrim(number_format((float) $item->planned_quantity, 2), '0'), '.') }} for this week,
+                                            rest to the pantry
+                                        </span>
+                                    @elseif ($item->sourceComponent)
+                                        for {{ $item->sourceComponent->displayName() }}
+                                    @else
+                                        {{ $item->source->label() }}
+                                    @endif
                                 </span>
                             </div>
-
-                            <p class="truncate text-xs text-ink-400">
-                                @if ($item->isOverBought())
-                                    {{-- Named so the extra reads as a deliberate
-                                         buy rather than a mistake. --}}
-                                    <span class="text-leaf-600">
-                                        {{ rtrim(rtrim(number_format((float) $item->planned_quantity, 2), '0'), '.') }} for this week,
-                                        rest to the pantry
-                                    </span>
-                                @elseif ($item->sourceComponent)
-                                    for {{ $item->sourceComponent->displayName() }}
-                                @else
-                                    {{ $item->source->label() }}
-                                @endif
-                            </p>
                         </div>
 
-                        @unless ($bought)
-                            {{-- Re-filing an item also teaches the guesser, which
-                                 looks at what this name was last filed under. --}}
-                            <details class="relative shrink-0">
-                                <summary class="grid size-tap cursor-pointer list-none place-items-center rounded-lg
-                                                text-ink-300 transition hover:bg-ink-100 hover:text-brand-600"
-                                         aria-label="Change aisle for {{ $item->item_name }}">
-                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M3 6h18M7 12h10M10 18h4"/>
-                                    </svg>
-                                </summary>
-                                <div class="absolute right-0 z-30 mt-1 max-h-72 w-44 overflow-y-auto rounded-xl
-                                            border border-ink-200 bg-white p-1.5 shadow-xl">
+                        {{-- One menu rather than three icons. Three tap targets
+                             at 44px each, with their gaps, took a third of a
+                             phone's width away from the name — and ticking the
+                             box is the only thing done at any speed in a shop.
+                             The rest are occasional, and an extra tap for them
+                             buys back the room to read what you are buying. --}}
+                        <details class="relative shrink-0">
+                            <summary class="grid size-tap cursor-pointer list-none place-items-center rounded-lg
+                                            text-ink-300 transition hover:bg-ink-100 hover:text-brand-600"
+                                     aria-label="More for {{ $item->item_name }}">
+                                <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                    <circle cx="12" cy="5" r="1.75"/><circle cx="12" cy="12" r="1.75"/>
+                                    <circle cx="12" cy="19" r="1.75"/>
+                                </svg>
+                            </summary>
+                            <div class="absolute right-0 z-30 mt-1 max-h-80 w-52 overflow-y-auto rounded-xl
+                                        border border-ink-200 bg-white p-1.5 shadow-xl">
+                                @unless ($bought)
+                                    @if ($item->ingredient_id)
+                                        {{-- Spec 5: flag stock straight from the list. --}}
+                                        <form method="POST" action="{{ route('grocery.stocked', $item) }}">
+                                            @csrf
+                                            <button type="submit"
+                                                    class="block w-full rounded-lg px-3 py-2 text-left text-sm
+                                                           text-ink-700 transition hover:bg-ink-100">
+                                                Already have it
+                                            </button>
+                                        </form>
+                                    @endif
+
+                                    {{-- Re-filing an item also teaches the guesser,
+                                         which looks at what this name was last
+                                         filed under. --}}
+                                    <p class="mt-1 border-t border-ink-100 px-3 pb-1 pt-2 text-[11px] font-semibold
+                                              uppercase tracking-wide text-ink-400">Aisle</p>
                                     @foreach ($allAisles as $aisle)
                                         <form method="POST" action="{{ route('grocery.aisle', $item) }}">
                                             @csrf
@@ -215,37 +241,20 @@
                                             </button>
                                         </form>
                                     @endforeach
-                                </div>
-                            </details>
+                                @endunless
 
-                            @if ($item->ingredient_id)
-                                {{-- Spec 5: flag stock straight from the list. --}}
-                                <form method="POST" action="{{ route('grocery.stocked', $item) }}" class="shrink-0">
+                                <form method="POST" action="{{ route('grocery.destroy', $item) }}"
+                                      class="{{ $bought ? '' : 'mt-1 border-t border-ink-100 pt-1' }}">
                                     @csrf
+                                    @method('DELETE')
                                     <button type="submit"
-                                            class="grid size-tap place-items-center rounded-lg text-ink-300 transition
-                                                   hover:bg-ink-100 hover:text-leaf-600"
-                                            aria-label="I already have {{ $item->item_name }}" title="Already have it">
-                                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M5 8h14l-1 12H6L5 8zM9 8V6a3 3 0 0 1 6 0v2"/>
-                                        </svg>
+                                            class="block w-full rounded-lg px-3 py-2 text-left text-sm text-ink-700
+                                                   transition hover:bg-red-50 hover:text-red-600">
+                                        Remove from list
                                     </button>
                                 </form>
-                            @endif
-                        @endunless
-
-                        <form method="POST" action="{{ route('grocery.destroy', $item) }}" class="shrink-0">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit"
-                                    class="grid size-tap place-items-center rounded-lg text-ink-300 transition
-                                           hover:bg-ink-100 hover:text-red-600"
-                                    aria-label="Remove {{ $item->item_name }}">
-                                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                     stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-                            </button>
-                        </form>
+                            </div>
+                        </details>
                     </li>
                 @endforeach
             </ul>

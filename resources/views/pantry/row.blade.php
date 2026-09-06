@@ -4,7 +4,7 @@
 @endphp
 
 <li class="px-3 py-2">
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-1">
         <div class="min-w-0 flex-1">
             <p class="truncate text-sm font-medium text-ink-900">{{ $flag->ingredient->name }}</p>
             <p class="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-ink-400">
@@ -84,16 +84,8 @@
                 </form>
             </div>
         </details>
-
-        <form method="POST" action="{{ route('pantry.gone', $flag) }}" class="shrink-0">
-            @csrf
-            <button type="submit"
-                    class="grid size-tap place-items-center rounded-lg text-ink-300 transition
-                           hover:bg-ink-100 hover:text-red-600"
-                    aria-label="{{ $flag->ingredient->name }} is gone">
-                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-            </button>
-        </form>
+        {{-- There was a third icon here, an x that did exactly what "It's gone"
+             above does. Two 44px targets and their gaps for one action, on the
+             screen where the names are longest. --}}
     </div>
 </li>

@@ -6,6 +6,7 @@ use App\Enums\IngredientCategory;
 use App\Enums\IngredientsStatus;
 use App\Enums\MealSlot;
 use App\Enums\ProteinType;
+use App\Enums\Rating;
 use App\Models\GroceryListItem;
 use App\Models\Ingredient;
 use App\Models\InventoryFlag;
@@ -15,6 +16,7 @@ use App\Services\GroceryListBuilder;
 use App\Services\InventoryService;
 use App\Services\MealPlanner;
 use App\Services\RecipeSuggestionRanker;
+use Database\Seeders\HouseholdSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -36,7 +38,7 @@ class PantryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\HouseholdSeeder::class);
+        $this->seed(HouseholdSeeder::class);
         $this->user = User::factory()->create();
         $this->inventory = new InventoryService;
         Carbon::setTestNow(Carbon::parse(self::WEDNESDAY));
@@ -277,7 +279,7 @@ class PantryTest extends TestCase
     public function test_something_going_off_boosts_recipes_that_use_it(): void
     {
         $usesIt = $this->recipeWith('Sour Cream Bake', ['Sour cream' => 0.25]);
-        Recipe::create(['name' => 'Plain Roast', 'rating' => \App\Enums\Rating::ThumbsUp]);
+        Recipe::create(['name' => 'Plain Roast', 'rating' => Rating::ThumbsUp]);
 
         $sourCream = Ingredient::where('name', 'Sour cream')->firstOrFail();
         $sourCream->update(['shelf_life_days' => 2]);
@@ -409,6 +411,29 @@ class PantryTest extends TestCase
     }
 
     // ------------------------------------------- acting on what is going off
+
+    /**
+     * A row carried three 44px tap targets, and the third was an x doing
+     * exactly what "It's gone" in the edit menu already did — two targets and
+     * their gaps for one action, on the screen where the names run longest.
+     */
+    public function test_a_pantry_row_carries_only_two_tap_targets(): void
+    {
+        $flag = $this->inventory->add(
+            $this->ingredient('Boneless skinless chicken breasts', IngredientCategory::Protein, 3),
+            2,
+            'lb',
+        );
+
+        $html = $this->actingAs($this->user)->get(route('pantry'))->assertOk()->getContent();
+        $row = Str::between($html, '<li class="px-3 py-2">', '</li>');
+
+        $this->assertSame(2, substr_count($row, 'size-tap'), 'the search and the edit menu, nothing else');
+
+        // Marking it gone is still one menu away, not gone itself.
+        $this->assertStringContainsString(route('pantry.gone', $flag), $row);
+        $this->assertStringContainsString('It&rsquo;s gone', $row);
+    }
 
     /** Knowing something is going off is only useful if you can act on it. */
     public function test_each_pantry_item_offers_a_recipe_search(): void
