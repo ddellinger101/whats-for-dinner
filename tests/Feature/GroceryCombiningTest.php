@@ -115,15 +115,47 @@ class GroceryCombiningTest extends TestCase
     }
 
     /**
-     * Two cups and three tablespoons are both olive oil, but they are not five
-     * of anything. Inventing a total would be worse than showing two lines.
+     * The case that prompted this: one recipe in tablespoons and another in
+     * cups made two lines of the same oil. The conversion is exact, so the
+     * shopper should not be doing it in an aisle.
      */
-    public function test_different_units_are_not_added_together(): void
+    public function test_amounts_in_different_volumes_are_converted_and_added(): void
     {
+        // 0.5 tbsp per serving over four servings: 2 tbsp.
         $this->plan($this->recipe('Roast', ['Extra virgin olive oil' => [0.5, 'tbsp']]), self::WEDNESDAY);
+        // 0.25 cup per serving over four: 1 cup, which is 16 tbsp.
         $this->plan($this->recipe('Pasta', ['Extra virgin olive oil' => [0.25, 'cup']]), self::THURSDAY);
 
-        $this->assertCount(2, GroceryListItem::where('item_name', 'Extra virgin olive oil')->get());
+        $lines = GroceryListItem::where('item_name', 'Extra virgin olive oil')->get();
+
+        $this->assertCount(1, $lines);
+        $this->assertEqualsWithDelta(18.0, (float) $lines->first()->quantity, 0.001);
+        $this->assertSame('tbsp', $lines->first()->unit);
+    }
+
+    /**
+     * A clove and a can are units of different things, and no arithmetic turns
+     * one into the other. Two lines beats an invented total.
+     */
+    public function test_units_that_do_not_convert_stay_apart(): void
+    {
+        $this->plan($this->recipe('Roast', ['Garlic' => [1.0, 'clove']]), self::WEDNESDAY);
+        $this->plan($this->recipe('Pasta', ['Garlic' => [1.0, 'head']]), self::THURSDAY);
+
+        $this->assertCount(2, GroceryListItem::where('item_name', 'Garlic')->get());
+    }
+
+    /** Weight converts too, and says the total in a sensible unit. */
+    public function test_weights_convert_and_step_up_to_the_larger_unit(): void
+    {
+        // 4 oz per serving over four servings is 16 oz; plus 1 lb is 2 lb.
+        $this->plan($this->recipe('Roast', ['Beef chuck' => [4.0, 'oz']]), self::WEDNESDAY);
+        $this->plan($this->recipe('Stew', ['Beef chuck' => [0.25, 'lb']]), self::THURSDAY);
+
+        $line = GroceryListItem::where('item_name', 'Beef chuck')->firstOrFail();
+
+        $this->assertSame('lb', $line->unit, 'two pounds, not thirty-two ounces');
+        $this->assertEqualsWithDelta(2.0, (float) $line->quantity, 0.01);
     }
 
     /** An unknown amount does not add up to a number. */

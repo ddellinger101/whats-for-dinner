@@ -11,6 +11,7 @@ use App\Models\Ingredient;
 use App\Models\MealComponent;
 use App\Models\RepeaterItem;
 use App\Support\AisleGuesser;
+use App\Support\UnitConversion;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -118,9 +119,9 @@ class GroceryListBuilder
      * recipes was three lines on the list and left the adding up to whoever
      * was holding the phone in the shop.
      *
-     * The unit is part of the match. Two cups and three tablespoons are both
-     * olive oil, but they are not five of anything, and inventing a total
-     * would be worse than showing two lines.
+     * Units have to be addable, not identical: six tablespoons and half a cup
+     * are fourteen tablespoons of the same oil. A clove and a can are units of
+     * different things, so those only join a line already counted the same way.
      */
     private function lineFor(
         string $name,
@@ -137,8 +138,8 @@ class GroceryListBuilder
                 fn ($q) => $q->whereNull('ingredient_id')
                     ->whereRaw('LOWER(item_name) = ?', [mb_strtolower($name)]),
             )
-            ->when($unit === null, fn ($q) => $q->whereNull('unit'), fn ($q) => $q->where('unit', $unit))
-            ->first();
+            ->get()
+            ->first(fn (GroceryListItem $line) => UnitConversion::compatible($line->unit, $unit));
 
         if ($existing) {
             return $existing;
@@ -184,13 +185,17 @@ class GroceryListBuilder
     {
         $line->load('sources');
 
-        $quantities = $line->sources->pluck('quantity');
-
-        // Unknown amounts do not add up to a number, and pretending otherwise
-        // would understate the line.
-        $planned = $quantities->contains(null)
-            ? null
-            : round((float) $quantities->sum(), 3);
+        // Converted where they need to be, so tablespoons and cups of the same
+        // oil become one figure. An unknown amount leaves the total unknown,
+        // because pretending otherwise would understate the line.
+        [$planned, $unit] = UnitConversion::sum(
+            $line->sources
+                ->map(fn (GroceryLineSource $s) => [
+                    $s->quantity === null ? null : (float) $s->quantity,
+                    $s->unit,
+                ])
+                ->all(),
+        );
 
         $wasUntouched = $line->quantity === null
             || $line->planned_quantity === null
@@ -199,6 +204,7 @@ class GroceryListBuilder
         $line->update([
             'planned_quantity' => $planned,
             'quantity' => $wasUntouched ? $planned : $line->quantity,
+            'unit' => $unit ?? $line->unit,
         ]);
 
         return $line->fresh();

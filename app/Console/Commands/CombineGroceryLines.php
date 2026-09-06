@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\GroceryLineSource;
 use App\Models\GroceryListItem;
+use App\Support\UnitConversion;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -34,11 +35,11 @@ class CombineGroceryLines extends Command
             ->with('sources')
             ->orderBy('created_at')
             ->get()
-            // Same thing and same unit. Two cups and three tablespoons are
-            // both olive oil but they are not five of anything.
+            // Same thing, in units that can be added. Tablespoons and cups of
+            // one oil are one line; cloves and cans of anything are not.
             ->groupBy(fn (GroceryListItem $item) => implode('|', [
                 $item->ingredient_id ?: mb_strtolower(trim($item->item_name)),
-                mb_strtolower((string) $item->unit),
+                UnitConversion::family($item->unit) ?? mb_strtolower((string) $item->unit),
             ]))
             ->filter(fn (Collection $lines) => $lines->count() > 1);
 
@@ -71,28 +72,30 @@ class CombineGroceryLines extends Command
         $keep = $lines->first();
         $rest = $lines->slice(1);
 
-        $quantities = $lines->pluck('quantity');
-        $total = $quantities->contains(null) ? null : round((float) $quantities->sum(), 3);
+        $amounts = fn (string $field) => $lines
+            ->map(fn (GroceryListItem $l) => [
+                $l->{$field} === null ? null : (float) $l->{$field},
+                $l->unit,
+            ])
+            ->values()
+            ->all();
+
+        [$total, $unit] = UnitConversion::sum($amounts('quantity'));
+        [$planned] = UnitConversion::sum($amounts('planned_quantity'));
 
         $this->line(sprintf(
             '  %-34s %d lines -> %s %s',
             $keep->item_name,
             $lines->count(),
             $total === null ? 'amount unknown' : rtrim(rtrim(number_format($total, 3), '0'), '.'),
-            $keep->unit ?? '',
+            $unit ?? '',
         ));
 
         if (! $apply) {
             return;
         }
 
-        $plannedAmounts = $lines->pluck('planned_quantity');
-
-        $planned = $plannedAmounts->contains(null)
-            ? null
-            : round((float) $plannedAmounts->sum(), 3);
-
-        DB::transaction(function () use ($keep, $rest, $total, $planned) {
+        DB::transaction(function () use ($keep, $rest, $total, $planned, $unit) {
             foreach ($rest as $line) {
                 foreach ($line->sources as $source) {
                     // A meal contributes to a line once, so a component that
@@ -115,7 +118,11 @@ class CombineGroceryLines extends Command
                 $line->forceDelete();
             }
 
-            $keep->fill(['quantity' => $total, 'planned_quantity' => $planned])->save();
+            $keep->fill([
+                'quantity' => $total,
+                'planned_quantity' => $planned,
+                'unit' => $unit ?? $keep->unit,
+            ])->save();
         });
     }
 }
