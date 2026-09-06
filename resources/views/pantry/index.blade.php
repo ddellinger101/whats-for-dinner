@@ -36,7 +36,9 @@
             <h2 class="px-1 text-xs font-semibold uppercase tracking-wide text-leaf-600">
                 Use these up &middot; {{ $atRisk->count() }}
             </h2>
-            <ul class="mt-1.5 divide-y divide-leaf-500/20 overflow-hidden rounded-2xl border border-leaf-500/50
+            {{-- See the note in the grocery list: overflow-hidden here would
+                 clip each row's edit menu. --}}
+            <ul class="mt-1.5 divide-y divide-leaf-500/20 rounded-2xl border border-leaf-500/50
                        bg-leaf-500/5 shadow-sm">
                 @foreach ($atRisk as $flag)
                     @include('pantry.row', ['flag' => $flag, 'today' => $today, 'urgent' => true])
@@ -60,8 +62,7 @@
                 {{ $categories[$categoryValue]->label() }}
                 <span class="font-normal normal-case tracking-normal">&middot; {{ $flags->count() }}</span>
             </h2>
-            <ul class="mt-1.5 divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-200
-                       bg-white shadow-sm">
+            <ul class="mt-1.5 divide-y divide-ink-100 rounded-2xl border border-ink-200 bg-white shadow-sm">
                 @foreach ($flags as $flag)
                     @include('pantry.row', ['flag' => $flag, 'today' => $today, 'urgent' => false])
                 @endforeach

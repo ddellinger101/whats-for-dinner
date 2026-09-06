@@ -249,6 +249,30 @@ class GroceryAislesTest extends TestCase
             ->assertSee('line-through', false);
     }
 
+    /**
+     * The aisle menu is absolutely positioned, so an ancestor with
+     * overflow-hidden clips it out of sight no matter what z-index it carries —
+     * which is exactly what happened, leaving the button apparently dead.
+     *
+     * Asserting on a class name is blunt, but this is a rendering bug no
+     * behavioural test can see, and the clipping container is the cause.
+     */
+    public function test_the_aisle_menu_is_not_inside_a_clipping_container(): void
+    {
+        (new GroceryListBuilder)->addManual('Bananas');
+
+        $html = $this->actingAs($this->user)->get(route('grocery'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Change aisle for', $html,
+            'the aisle menu should be on the page');
+
+        $this->assertStringNotContainsString(
+            'divide-ink-100 overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm',
+            $html,
+            'the list holding the aisle menu must not clip its overflow',
+        );
+    }
+
     // ---------------------------------------------------------- manual add
 
     public function test_a_manual_item_can_be_filed_by_hand(): void

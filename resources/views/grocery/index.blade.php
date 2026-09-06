@@ -88,10 +88,15 @@
                 </span>
             </h2>
 
-            <ul class="mt-1.5 divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
+            {{-- No overflow-hidden: the aisle menu below is absolutely
+                 positioned, and an overflow container clips it no matter what
+                 z-index it carries. The corners are rounded on the end rows
+                 instead, which is what the clipping was for. --}}
+            <ul class="mt-1.5 divide-y divide-ink-100 rounded-2xl border border-ink-200 bg-white shadow-sm">
                 @foreach ($section['items'] as $item)
                     @php $bought = $item->status === \App\Enums\GroceryItemStatus::Purchased; @endphp
-                    <li class="flex items-center gap-2 px-3 py-2 {{ $bought ? 'bg-ink-50/60' : '' }}">
+                    <li class="flex items-center gap-2 px-3 py-2 first:rounded-t-2xl last:rounded-b-2xl
+                               {{ $bought ? 'bg-ink-50/60' : '' }}">
                         <form method="POST" action="{{ route('grocery.toggle', $item) }}" class="shrink-0">
                             @csrf
                             <button type="submit"
@@ -142,8 +147,8 @@
                                         <path d="M3 6h18M7 12h10M10 18h4"/>
                                     </svg>
                                 </summary>
-                                <div class="absolute right-0 z-20 mt-1 w-40 rounded-xl border border-ink-200
-                                            bg-white p-1.5 shadow-lg">
+                                <div class="absolute right-0 z-30 mt-1 max-h-72 w-44 overflow-y-auto rounded-xl
+                                            border border-ink-200 bg-white p-1.5 shadow-xl">
                                     @foreach ($allAisles as $aisle)
                                         <form method="POST" action="{{ route('grocery.aisle', $item) }}">
                                             @csrf
