@@ -86,6 +86,18 @@ class PantryStaples
             // Smoked paprika is a different jar and is not on the rack, so it
             // stays on the list.
             new PantryStaple('Paprika', 'spice', ['sweet paprika']),
+            // Not in the photograph, which shows the rack rather than what
+            // stands beside the hob, but always in. The dozen ways the archive
+            // writes these are handled by saltAndPepper() rather than listed
+            // here — see the note there.
+            new PantryStaple('Salt', 'spice', [
+                'kosher salt', 'sea salt', 'table salt', 'fine salt',
+                'coarse salt', 'fine sea salt', 'coarse sea salt',
+            ]),
+            new PantryStaple('Black pepper', 'spice', [
+                'pepper', 'ground black pepper', 'ground pepper', 'cracked black pepper',
+                'black cracked pepper', 'coarse black pepper', 'cracked pepper',
+            ]),
             new PantryStaple('Sesame seed', 'spice', ['sesame seeds', 'toasted sesame seeds']),
             new PantryStaple('Star anise', 'spice', ['whole star anise']),
             new PantryStaple('White pepper', 'spice', ['ground white pepper', 'white pepper ground']),
@@ -103,6 +115,11 @@ class PantryStaples
             new PantryStaple('Pork rub', 'blend'),
             new PantryStaple('Pumpkin pie spice', 'blend'),
             new PantryStaple('Taco seasoning', 'blend', ['taco seasoning mix']),
+
+            // Not a jar, so it is never stocked on the rack — but recipes name
+            // it constantly and it belongs off the list like the two jars it
+            // stands for.
+            new PantryStaple('Salt and pepper', 'blend', onRack: false),
         ];
     }
 
@@ -121,6 +138,49 @@ class PantryStaples
 
         foreach (self::all() as $staple) {
             if (in_array($needle, $staple->allNames(), true)) {
+                return $staple;
+            }
+        }
+
+        return self::saltAndPepper($needle);
+    }
+
+    /**
+     * Salt and pepper, however the recipe dressed it up.
+     *
+     * The archive writes these sixteen ways — "salt and pepper", "salt/pepper",
+     * "kosher salt and fresh ground black pepper", "salt and plenty of black
+     * pepper" — and listing every one would still miss the seventeenth. So the
+     * qualifiers are stripped instead, and whatever is left has to be nothing
+     * but salt and pepper.
+     *
+     * The qualifier list is deliberately short. "White", "red", "lemon" and
+     * "bell" are absent, so white pepper keeps its own jar and neither red
+     * pepper nor a bell pepper is ever mistaken for the pepper mill.
+     */
+    private static function saltAndPepper(string $name): ?PantryStaple
+    {
+        $qualifiers = [
+            'kosher', 'sea', 'table', 'fine', 'coarse', 'coarsely', 'ground',
+            'cracked', 'freshly', 'fresh', 'black', 'plenty', 'of', 'and',
+            'plus', 'more', 'extra', 'to', 'taste', 'each', 'with', 'a', 'good',
+        ];
+
+        $words = preg_split('/[^a-z]+/u', $name, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $core = array_values(array_unique(array_diff($words, $qualifiers)));
+
+        if ($core === [] || array_diff($core, ['salt', 'pepper']) !== []) {
+            return null;
+        }
+
+        $name = match (true) {
+            count($core) === 2 => 'Salt and pepper',
+            $core[0] === 'salt' => 'Salt',
+            default => 'Black pepper',
+        };
+
+        foreach (self::all() as $staple) {
+            if ($staple->name === $name) {
                 return $staple;
             }
         }
@@ -144,6 +204,19 @@ class PantryStaples
      */
     private static function saysFresh(string $name): bool
     {
+        // "Fresh ground black pepper" and "freshly grated nutmeg" describe the
+        // grinding, not the ingredient — there is no fresh form of a
+        // peppercorn, and the cook is grinding the jar. Only a bare "fresh" is
+        // a request for the fresh thing.
+        $name = preg_replace(
+            // Grinding words only. "Fresh chopped parsley" and "fresh minced
+            // basil" are requests for the fresh herb, and must keep their
+            // "fresh".
+            '/\bfresh(?:ly)?\s+(ground|grated|cracked|milled)\b/u',
+            '$1',
+            $name,
+        ) ?? $name;
+
         return (bool) preg_match('/\bfresh\b/u', $name);
     }
 

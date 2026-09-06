@@ -39,6 +39,9 @@ class IngredientCategoryGuesser
                 'powder', 'powdered', 'dried', 'sundried', 'sun-dried', 'seasoning',
                 'extract', 'flakes', 'granulated', 'bouillon', 'teaspoon',
                 'tablespoon', 'ground cinnamon', 'ground cumin',
+                // Ahead of the drinks rule, where "soda" was claiming baking
+                // soda and filing it with the beer.
+                'baking soda', 'baking powder', 'bicarbonate', 'baking',
             ]],
 
             // Condiments before drinks: "red wine vinegar" and "cooking wine"
@@ -47,8 +50,12 @@ class IngredientCategoryGuesser
                 'vinegar', 'cooking wine', 'rice wine', 'ketchup', 'mustard',
                 'mayo', 'mayonnaise', 'soy sauce', 'hot sauce',
                 'sriracha', 'vinegar', 'worcestershire', 'bbq sauce', 'barbecue sauce',
-                'ranch', 'dressing', 'relish', 'horseradish', 'fish sauce', 'sesame oil',
-                'olive oil', 'vegetable oil', 'canola oil', 'avocado oil', 'cooking spray',
+                'ranch', 'dressing', 'relish', 'horseradish', 'fish sauce',
+                // Any oil, not a list of them. Naming five meant grapeseed oil
+                // fell through to produce on the word "grape", and the next
+                // unlisted oil would have done the same. Matched on a word
+                // boundary, so "shrimp boil" is untouched.
+                'oil', 'cooking spray',
                 'honey', 'maple syrup', 'peanut butter', 'jam', 'jelly', 'pesto',
             ]],
 

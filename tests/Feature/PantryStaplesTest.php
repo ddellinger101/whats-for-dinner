@@ -106,6 +106,86 @@ class PantryStaplesTest extends TestCase
         $this->assertNotNull(PantryStaples::match('Red pepper flakes'));
     }
 
+    /**
+     * The archive writes these sixteen ways. Enumerating them would still miss
+     * the seventeenth, so the qualifiers are stripped and whatever remains has
+     * to be nothing but salt and pepper.
+     */
+    public function test_salt_and_pepper_are_caught_however_they_are_written(): void
+    {
+        foreach ([
+            'Salt' => 'Salt',
+            'Kosher salt' => 'Salt',
+            'Sea salt' => 'Salt',
+            'Pepper' => 'Black pepper',
+            'Black pepper' => 'Black pepper',
+            'Ground black pepper' => 'Black pepper',
+            // No fresh form of a peppercorn: this is about the grinding.
+            'Fresh ground black pepper' => 'Black pepper',
+            'Salt and pepper' => 'Salt and pepper',
+            'Salt & pepper' => 'Salt and pepper',
+            'Salt/pepper' => 'Salt and pepper',
+            'Salt and plenty of black pepper' => 'Salt and pepper',
+            'Kosher salt and fresh ground black pepper' => 'Salt and pepper',
+        ] as $written => $expected) {
+            $this->assertSame($expected, PantryStaples::match($written)?->name, $written);
+        }
+    }
+
+    /**
+     * The qualifier list is short on purpose. These share a word with salt or
+     * pepper and are entirely different things.
+     */
+    public function test_the_salt_and_pepper_rule_does_not_overreach(): void
+    {
+        foreach (['Red pepper', 'Red bell pepper', 'Salted butter', 'Pepper jack velveeta', 'Seasoned salt'] as $name) {
+            $this->assertNull(PantryStaples::match($name), $name);
+        }
+
+        // These are their own jars and keep their own identity.
+        $this->assertSame('White pepper', PantryStaples::match('White pepper')?->name);
+        $this->assertSame('Garlic salt', PantryStaples::match('Garlic salt')?->name);
+        $this->assertSame('Lemon pepper seasoning', PantryStaples::match('Lemon pepper')?->name);
+    }
+
+    /** "Salt and pepper" is two jars, so there is no such jar to stock. */
+    public function test_a_phrase_that_is_not_a_jar_is_never_stocked_on_the_rack(): void
+    {
+        $this->artisan('pantry:staples')->assertSuccessful();
+
+        $combined = Ingredient::whereRaw('LOWER(name) = ?', ['salt and pepper'])->first();
+
+        if ($combined) {
+            $this->assertNull(InventoryFlag::where('ingredient_id', $combined->id)->first());
+        }
+
+        $this->assertNotNull(
+            InventoryFlag::whereIn(
+                'ingredient_id',
+                Ingredient::whereRaw('LOWER(name) = ?', ['salt'])->pluck('id'),
+            )->first(),
+        );
+    }
+
+    /**
+     * The distinction the household drew: red pepper is produce, crushed red
+     * pepper is the jar. The parser was stripping "crushed" as a preparation
+     * note, so half a teaspoon of chilli flakes arrived as a bell pepper.
+     */
+    public function test_crushed_red_pepper_is_the_jar_and_red_pepper_is_produce(): void
+    {
+        $this->assertSame('Crushed red pepper', IngredientLine::parse('1/2 tsp crushed red pepper')->name);
+        $this->assertSame('Red pepper', IngredientLine::parse('1 red pepper, diced')->name);
+
+        $this->assertTrue($this->resolve('Crushed red pepper')->isStaple());
+        $this->assertFalse($this->resolve('Red pepper')->isStaple());
+
+        // The same trap, same fix: a can of crushed tomatoes is not a tomato.
+        $this->assertSame('Crushed tomatoes', IngredientLine::parse('1 cup crushed tomatoes')->name);
+        // While a genuine preparation note is still dropped.
+        $this->assertSame('Garlic', IngredientLine::parse('2 cloves garlic, crushed')->name);
+    }
+
     // -------------------------------------------------------- grocery list
 
     /** The complaint, in one test: half a teaspoon of paprika is not shopping. */
@@ -213,14 +293,14 @@ class PantryStaplesTest extends TestCase
     {
         $this->artisan('pantry:staples')->assertSuccessful();
 
-        $this->assertSame(
-            count(PantryStaples::all()),
-            Ingredient::where('is_staple', true)->count(),
-        );
-        $this->assertSame(
-            count(PantryStaples::all()),
-            InventoryFlag::where('has_stock', true)->count(),
-        );
+        // Every jar is stocked; "salt and pepper" is a phrase, not a jar, so it
+        // is not among them.
+        $jars = collect(PantryStaples::all())->filter->onRack;
+
+        $this->assertSame($jars->count(), Ingredient::where('is_staple', true)->count());
+        $this->assertSame($jars->count(), InventoryFlag::where('has_stock', true)->count());
+        $this->assertContains('Salt', Ingredient::where('is_staple', true)->pluck('name')->all());
+        $this->assertContains('Black pepper', Ingredient::where('is_staple', true)->pluck('name')->all());
     }
 
     /**

@@ -8,17 +8,20 @@ use App\Enums\IngredientsStatus;
 use App\Enums\MealSlot;
 use App\Jobs\ImportRecipeDetails;
 use App\Models\Ingredient;
+use App\Models\InventoryFlag;
 use App\Models\Recipe;
 use App\Services\MealPlanner;
 use App\Services\Scraping\RecipeDetailImporter;
 use App\Services\Scraping\RecipeScraper;
 use App\Support\IngredientCategoryGuesser;
 use App\Support\IngredientLine;
+use Database\Seeders\HouseholdSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class RecipeScrapingTest extends TestCase
@@ -28,7 +31,7 @@ class RecipeScrapingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\HouseholdSeeder::class);
+        $this->seed(HouseholdSeeder::class);
     }
 
     // ------------------------------------------------------- line parsing
@@ -78,7 +81,7 @@ class RecipeScrapingTest extends TestCase
         ];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('ingredientLines')]
+    #[DataProvider('ingredientLines')]
     public function test_it_parses_ingredient_lines(string $line, ?float $qty, ?string $unit, string $name): void
     {
         $parsed = IngredientLine::parse($line);
@@ -109,6 +112,37 @@ class RecipeScrapingTest extends TestCase
         $this->assertSame(IngredientCategory::JarredCanned, $guesser->guess('Canned black beans'));
         $this->assertSame(IngredientCategory::Condiment, $guesser->guess('Olive oil'));
         $this->assertSame(IngredientCategory::Frozen, $guesser->guess('Frozen peas'));
+    }
+
+    /** "Soda" was claiming baking soda and filing it with the beer. */
+    public function test_baking_staples_are_dry_goods_not_drinks(): void
+    {
+        $guesser = new IngredientCategoryGuesser;
+
+        $this->assertSame(IngredientCategory::PantryDry, $guesser->guess('Baking soda'));
+        $this->assertSame(IngredientCategory::PantryDry, $guesser->guess('Baking powder'));
+
+        // While an actual drink still is one.
+        $this->assertSame(IngredientCategory::Beverage, $guesser->guess('Club soda'));
+    }
+
+    /**
+     * Naming five oils meant grapeseed oil fell through to produce on the word
+     * "grape", and the next oil nobody thought of would have done the same.
+     */
+    public function test_any_oil_is_a_condiment(): void
+    {
+        $guesser = new IngredientCategoryGuesser;
+
+        foreach ([
+            'Grapeseed oil', 'Olive oil', 'Sesame oil', 'Coconut oil',
+            'Chili oil', 'Truffle oil', 'Peanut oil', 'Vegetable oil',
+        ] as $oil) {
+            $this->assertSame(IngredientCategory::Condiment, $guesser->guess($oil), $oil);
+        }
+
+        // The word boundary matters: a shrimp boil is not an oil.
+        $this->assertNotSame(IngredientCategory::Condiment, $guesser->guess('Shrimp boil'));
     }
 
     /**
@@ -250,7 +284,7 @@ class RecipeScrapingTest extends TestCase
             'shelf_life_days' => 365,
         ]);
 
-        $flag = \App\Models\InventoryFlag::create([
+        $flag = InventoryFlag::create([
             'ingredient_id' => $bread->id,
             'has_stock' => true,
             'acquired_on' => '2026-09-05',
@@ -276,7 +310,7 @@ class RecipeScrapingTest extends TestCase
             'shelf_life_days' => 180,
         ]);
 
-        $flag = \App\Models\InventoryFlag::create([
+        $flag = InventoryFlag::create([
             'ingredient_id' => $beer->id,
             'has_stock' => true,
             'acquired_on' => '2026-09-05',

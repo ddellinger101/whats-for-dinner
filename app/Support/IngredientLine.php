@@ -79,6 +79,21 @@ readonly class IngredientLine
     ];
 
     /**
+     * Phrases where a preparation word is part of what the thing is, rather
+     * than a note about what to do to it.
+     *
+     * "Crushed red pepper" is a jar of dried chilli flakes. Strip the word and
+     * it becomes "red pepper", which is a fresh bell pepper — a different
+     * aisle, a different ingredient, and one that then lands on the grocery
+     * list every time a recipe asks for half a teaspoon of chilli flakes.
+     */
+    private const PRODUCT_NAMES = [
+        'crushed red pepper',
+        'crushed tomatoes',
+        'crushed pineapple',
+    ];
+
+    /**
      * Containers the amount is packaged in. "15 oz cans great northern beans"
      * is beans, not cans, so these are dropped once the unit is known.
      */
@@ -274,12 +289,28 @@ readonly class IngredientLine
             }
         }
 
+        // Held out of the way while preparation words are stripped, then put
+        // back. The placeholder is plain letters and digits so nothing below
+        // can match inside it.
+        $held = [];
+
+        foreach (self::PRODUCT_NAMES as $index => $phrase) {
+            $token = 'PRODUCTNAME'.$index;
+            $replaced = preg_replace('/\b'.preg_quote($phrase, '/').'\b/iu', $token, $text) ?? $text;
+
+            if ($replaced !== $text) {
+                $held[$token] = $phrase;
+                $text = $replaced;
+            }
+        }
+
         foreach (self::PREP_WORDS as $word) {
             $text = preg_replace('/\b'.preg_quote($word, '/').'\b/', ' ', $text) ?? $text;
         }
 
         $text = preg_replace('/\s+/', ' ', $text) ?? $text;
         $text = trim($text, " \t\n\r\0\x0B-–—.*()[]");
+        $text = strtr($text, $held);
 
         // Not ucfirst: that works on bytes, so a name beginning with any
         // multibyte character came back with its first byte mangled and the

@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use App\Enums\IngredientCategory;
 use App\Models\Ingredient;
 use App\Models\InventoryFlag;
-use App\Support\PantryStaple;
 use App\Support\PantryStaples;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
@@ -46,6 +45,13 @@ class SyncPantryStaples extends Command
         foreach (PantryStaples::all() as $staple) {
             $ingredient = $this->findByName($staple->name);
 
+            // A phrase that is not a jar gets no row of its own here. If a
+            // recipe ever names it the resolver will make one; conjuring an
+            // ingredient attached to nothing helps nobody.
+            if (! $ingredient && ! $staple->onRack) {
+                continue;
+            }
+
             if (! $ingredient) {
                 $created[] = $staple->name;
 
@@ -66,8 +72,10 @@ class SyncPantryStaples extends Command
             }
 
             // A flag with no expiry is what puts it on the pantry screen
-            // without ever landing in "use these up".
-            if (! $dryRun && $ingredient) {
+            // without ever landing in "use these up". Skipped for a phrase
+            // that is not itself a jar, which would otherwise show on the rack
+            // as a thing the household owns.
+            if (! $dryRun && $ingredient && $staple->onRack) {
                 InventoryFlag::updateOrCreate(
                     ['ingredient_id' => $ingredient->id],
                     [
@@ -80,10 +88,10 @@ class SyncPantryStaples extends Command
                 );
             }
 
-            $stocked++;
-
-            $aliased = [...$aliased, ...$this->markAliasRows($staple, $dryRun)];
+            $stocked += $staple->onRack ? 1 : 0;
         }
+
+        $aliased = $this->markMatchingRows($dryRun);
 
         $this->report($dryRun, $created, $adopted, $aliased, $stocked);
 
@@ -91,40 +99,30 @@ class SyncPantryStaples extends Command
     }
 
     /**
-     * Rows the archive already holds that mean this jar under another name.
+     * Rows the archive already holds that turn out to be a jar under another
+     * name — "Ground cumin", "Dried thyme", "Kosher salt and fresh ground
+     * black pepper".
+     *
+     * Every row is asked rather than each jar's aliases being looked up,
+     * because salt and pepper are matched by rule rather than by a listed
+     * alias and a name-driven query would miss all sixteen spellings of them.
+     * A few hundred rows is nothing to walk.
      *
      * They keep their own identity and their recipe links; all they gain is
      * the standing that keeps them off the list.
      *
      * @return list<string>
      */
-    private function markAliasRows(PantryStaple $staple, bool $dryRun): array
+    private function markMatchingRows(bool $dryRun): array
     {
-        $names = array_filter(
-            $staple->allNames(),
-            fn (string $n) => $n !== mb_strtolower($staple->name),
-        );
-
-        if ($names === []) {
-            return [];
-        }
-
-        $rows = Ingredient::query()
-            ->where('is_staple', false)
-            ->where(function ($query) use ($names) {
-                foreach ($names as $name) {
-                    $query->orWhereRaw('LOWER(name) = ?', [$name]);
-                }
-            })
-            ->get();
-
         $marked = [];
 
-        foreach ($rows as $row) {
-            // Belt and braces: the query cannot return a fresh row, since
-            // "fresh basil" is not among a staple's names, but the rule is
-            // important enough to state where it is being applied.
-            if (PantryStaples::match($row->name)?->name !== $staple->name) {
+        foreach (Ingredient::where('is_staple', false)->orderBy('name')->get() as $row) {
+            $staple = PantryStaples::match($row->name);
+
+            // Anything called fresh returns null here, which is the rule that
+            // keeps fresh herbs on the grocery list.
+            if (! $staple) {
                 continue;
             }
 
