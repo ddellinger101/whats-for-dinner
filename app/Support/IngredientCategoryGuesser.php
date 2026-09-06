@@ -151,6 +151,21 @@ class IngredientCategoryGuesser
     {
         $name = mb_strtolower($ingredientName);
 
+        /*
+         * The spice rack is dry goods by definition, and it has to be settled
+         * before any keyword gets a look. Left to the rules, "Cumin ground"
+         * and "Nutmeg ground" were filed as Protein on the word "ground" —
+         * inheriting a three-day shelf life — and "Thyme leaves" and "Crushed
+         * red pepper" as Produce on six days, which would have put the whole
+         * rack in the use-these-up list within a week.
+         *
+         * Anything a recipe calls fresh is not a staple, so it falls through
+         * to the rules below and is filed as the produce it is.
+         */
+        if (PantryStaples::match($name)) {
+            return IngredientCategory::PantryDry;
+        }
+
         foreach ($this->rules() as [$category, $keywords]) {
             foreach ($keywords as $keyword) {
                 if ($this->matches($name, $keyword)) {

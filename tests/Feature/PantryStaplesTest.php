@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\IngredientResolver;
 use App\Services\InventoryService;
 use App\Services\MealPlanner;
+use App\Support\IngredientCategoryGuesser;
 use App\Support\IngredientLine;
 use App\Support\PantryStaples;
 use Database\Seeders\HouseholdSeeder;
@@ -184,6 +185,29 @@ class PantryStaplesTest extends TestCase
         $this->assertSame('Crushed tomatoes', IngredientLine::parse('1 cup crushed tomatoes')->name);
         // While a genuine preparation note is still dropped.
         $this->assertSame('Garlic', IngredientLine::parse('2 cloves garlic, crushed')->name);
+    }
+
+    /**
+     * The rack is dry goods by definition, settled before any keyword gets a
+     * look. Left to the rules, "Cumin ground" was Protein on the word "ground"
+     * — three days' shelf life — and "Thyme leaves" was Produce on six, which
+     * would have put the whole rack in the use-these-up list within a week.
+     */
+    public function test_the_rack_is_always_dry_goods_whatever_the_keywords_say(): void
+    {
+        $guesser = new IngredientCategoryGuesser;
+
+        foreach ([
+            'Cumin ground', 'Nutmeg ground', 'Allspice ground', 'Cloves ground',
+            'Thyme leaves', 'Rosemary leaves', 'Basil leaves', 'Crushed red pepper',
+            'Minced onion', 'Garlic salt', 'Pork rub', 'Yellow mustard seed',
+        ] as $jar) {
+            $this->assertSame(IngredientCategory::PantryDry, $guesser->guess($jar), $jar);
+        }
+
+        // And fresh is produce, as it should be.
+        $this->assertSame(IngredientCategory::Produce, $guesser->guess('Fresh thyme'));
+        $this->assertSame(IngredientCategory::Produce, $guesser->guess('Red pepper'));
     }
 
     // -------------------------------------------------------- grocery list
