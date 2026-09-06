@@ -99,6 +99,8 @@ Route::middleware('auth')->group(function () {
     // Declared before the {recipe} route, or "new" is read as a recipe id.
     Route::get('/recipes/new', [RecipeController::class, 'create'])->name('recipes.create');
     Route::post('/recipes', [RecipeController::class, 'store'])->name('recipes.store');
+    // Declared before /recipes/{recipe} so "from-link" is not read as an id.
+    Route::post('/recipes/from-link', [RecipeController::class, 'storeFromLink'])->name('recipes.from-link');
     Route::get('/recipes/{recipe}/edit', [RecipeController::class, 'edit'])->name('recipes.edit');
     Route::put('/recipes/{recipe}', [RecipeController::class, 'update'])->name('recipes.update');
     Route::delete('/recipes/{recipe}', [RecipeController::class, 'destroy'])->name('recipes.destroy');

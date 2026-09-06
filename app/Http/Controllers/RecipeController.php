@@ -11,6 +11,7 @@ use App\Models\HouseholdSetting;
 use App\Models\Ingredient;
 use App\Models\MealComponent;
 use App\Models\Recipe;
+use App\Services\Discovery\DiscoveredRecipeImporter;
 use App\Services\InventoryService;
 use App\Services\MealPlanner;
 use Illuminate\Support\Facades\Storage;
@@ -82,6 +83,45 @@ class RecipeController extends Controller
 
         return redirect()->route('recipes.show', $recipe)
             ->with('status', "{$recipe->name} created. Add its ingredients below.");
+    }
+
+    /**
+     * Add a recipe from nothing but its link.
+     *
+     * By far the commonest way a recipe arrives — someone finds one, and typing
+     * the title, ingredients, method and tags back in by hand is exactly the
+     * chore the scraper already exists to avoid.
+     */
+    public function storeFromLink(Request $request, DiscoveredRecipeImporter $importer): RedirectResponse
+    {
+        $validated = $request->validate([
+            'url' => ['required', 'url', 'max:2048'],
+        ]);
+
+        $recipe = $importer->importFromUrl($validated['url']);
+
+        if (! $recipe) {
+            // Falls back to the form with the link kept, rather than creating
+            // an empty recipe that looks like it worked.
+            return redirect()
+                ->route('recipes.create', ['url' => $validated['url']])
+                ->withErrors(['url' => $importer->lastFetchRefused
+                    ? 'That site blocks automated readers, so nothing could be read from it. Fill in what you need below — the link is kept.'
+                    : 'Nothing could be read from that page. Fill in what you need below — the link is kept.']);
+        }
+
+        $missing = collect([
+            $recipe->ingredients->isEmpty() ? 'ingredients' : null,
+            $recipe->hasInstructions() ? null : 'method',
+        ])->filter()->values();
+
+        return redirect()->route('recipes.show', $recipe)->with(
+            'status',
+            $missing->isEmpty()
+                ? "Added {$recipe->name}. Worth a quick check of its tags."
+                : "Added {$recipe->name}, but its {$missing->join(' and ')} could not be read. Add "
+                    .($missing->count() > 1 ? 'them' : 'it').' below.',
+        );
     }
 
     public function edit(Recipe $recipe): View

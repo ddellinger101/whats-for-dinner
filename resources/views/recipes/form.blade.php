@@ -17,6 +17,40 @@
         <p class="mt-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{{ $errors->first() }}</p>
     @endif
 
+    @if ($isNew)
+        {{-- The usual way a recipe arrives is as a link, and typing its title,
+             ingredients, method and tags back in by hand is exactly the chore
+             the scraper already exists to avoid. Offered first, and the form
+             below stays for anything it cannot read. --}}
+            <form method="POST" action="{{ route('recipes.from-link') }}"
+              class="mt-2 rounded-2xl border border-leaf-500/50 bg-leaf-500/5 p-5 shadow-sm">
+            @csrf
+            <h2 class="text-base font-semibold text-ink-900">Have a link?</h2>
+            <p class="mt-1 text-sm text-ink-600">
+                Paste it and the title, ingredients, method, photo and tags are read from the page.
+            </p>
+            <div class="mt-3 flex flex-wrap gap-2">
+                <input type="url" name="url" required inputmode="url"
+                       value="{{ old('url', request('url')) }}"
+                       placeholder="https://example.com/beef-tacos"
+                       class="min-h-tap min-w-0 flex-1 rounded-xl border border-ink-200 bg-white px-4 text-base
+                              outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200">
+                <button type="submit"
+                        class="min-h-tap shrink-0 rounded-xl bg-brand-600 px-5 font-semibold text-white shadow-sm
+                               transition hover:bg-brand-700 active:scale-95">
+                    Fetch it
+                </button>
+            </div>
+            <p class="mt-2 text-xs text-ink-400">
+                Takes a few seconds. You can correct anything afterwards.
+            </p>
+        </form>
+
+        <p class="mt-4 px-1 text-xs font-semibold uppercase tracking-wide text-ink-400">
+            Or enter it yourself
+        </p>
+    @endif
+
     <form method="POST" action="{{ $isNew ? route('recipes.store') : route('recipes.update', $recipe) }}"
           class="mt-2 space-y-5 rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
         @csrf
@@ -110,7 +144,7 @@
             <label for="links" class="block text-sm font-medium text-ink-800">Recipe links</label>
             <textarea id="links" name="links" rows="3" placeholder="https://example.com/beef-tacos"
                       class="mt-1.5 w-full rounded-xl border border-ink-200 px-3.5 py-2.5 text-base outline-none
-                             focus:border-brand-500 focus:ring-2 focus:ring-brand-200">{{ old('links', implode("\n", $recipe->recipe_links ?? [])) }}</textarea>
+                             focus:border-brand-500 focus:ring-2 focus:ring-brand-200">{{ old('links', request('url') ?: implode("\n", $recipe->recipe_links ?? [])) }}</textarea>
             <p class="mt-1 text-xs text-ink-400">
                 One per line. Ingredients are fetched from the first one that works.
             </p>

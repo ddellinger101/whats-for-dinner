@@ -55,6 +55,18 @@ class RecipeDetailImporter
             return false;
         }
 
+        return $this->apply($recipe, $scraped);
+    }
+
+    /**
+     * Write an already-fetched page onto a recipe.
+     *
+     * Split out from import() so a caller that has to read the page first —
+     * pasting a bare link, where even the title is unknown until it is
+     * fetched — does not have to fetch it twice.
+     */
+    public function apply(Recipe $recipe, ScrapedRecipe $scraped): bool
+    {
         if ($scraped->imageUrl && $recipe->canAcceptScrapedImage()) {
             $this->attachImage($recipe, $scraped->imageUrl);
         }

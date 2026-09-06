@@ -10,6 +10,7 @@ use App\Services\Scraping\RecipeDetailImporter;
 use App\Support\ProteinGuesser;
 use App\Support\RecipeTagGuesser;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -41,12 +42,74 @@ class DiscoveredRecipeImporter
         return Recipe::where('external_id', $discovered->externalId())->first();
     }
 
+    /**
+     * Add a recipe from nothing but its link.
+     *
+     * The page has to be read before the recipe can even be named, so this
+     * fetches once and hands the result straight to the detail importer rather
+     * than letting it fetch again.
+     *
+     * Returns null when the page yields nothing usable — better to say so and
+     * let the form be filled in than to create a recipe called "Untitled" that
+     * looks like it worked.
+     */
+    public function importFromUrl(string $url): ?Recipe
+    {
+        $probe = new DiscoveredRecipe(title: '', url: $url);
+
+        if ($existing = $this->existing($probe)) {
+            return $existing;
+        }
+
+        $scraped = $this->details->scraper->scrapeFirstUsable([$url]);
+        $this->lastFetchRefused = $this->details->scraper->lastFetchRefused;
+
+        if (! $scraped) {
+            return null;
+        }
+
+        $discovered = new DiscoveredRecipe(
+            title: $scraped->title ?: $this->titleFromUrl($url),
+            url: $url,
+            ingredients: $scraped->ingredientLines,
+        );
+
+        $recipe = $this->create($discovered);
+        $this->details->apply($recipe, $scraped);
+
+        return $recipe->fresh();
+    }
+
     public function import(DiscoveredRecipe $discovered): Recipe
     {
         if ($existing = $this->existing($discovered)) {
             return $existing;
         }
 
+        $recipe = $this->create($discovered);
+
+        // Fetched inline rather than queued: someone who just tapped "add this"
+        // expects a recipe, and an empty one filling in a minute later reads as
+        // a failure. Wrapped, because a slow or broken page must still leave a
+        // usable recipe behind with its link intact.
+        try {
+            $this->details->import($recipe);
+            $this->lastFetchRefused = $this->details->lastFetchRefused;
+        } catch (Throwable $e) {
+            Log::info('Discovered recipe import could not fetch details', [
+                'url' => $discovered->url,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $recipe->fresh();
+    }
+
+    /**
+     * The recipe row itself, before any page has been read onto it.
+     */
+    private function create(DiscoveredRecipe $discovered): Recipe
+    {
         $name = $this->uniqueName($discovered->cleanTitle());
 
         $recipe = Recipe::create([
@@ -69,21 +132,29 @@ class DiscoveredRecipeImporter
 
         $recipe->update(['is_keto' => $recipe->fresh()->category_tags->contains(\App\Enums\CategoryTag::Keto)]);
 
-        // Fetched inline rather than queued: someone who just tapped "add this"
-        // expects a recipe, and an empty one filling in a minute later reads as
-        // a failure. Wrapped, because a slow or broken page must still leave a
-        // usable recipe behind with its link intact.
-        try {
-            $this->details->import($recipe);
-            $this->lastFetchRefused = $this->details->lastFetchRefused;
-        } catch (Throwable $e) {
-            Log::info('Discovered recipe import could not fetch details', [
-                'url' => $discovered->url,
-                'error' => $e->getMessage(),
-            ]);
-        }
-
         return $recipe->fresh();
+    }
+
+    /**
+     * A readable name from the link itself, for pages that publish no title.
+     * A recipe slug is almost always the dish, so "/ground-beef-tacos-recipe/"
+     * beats calling it "Untitled".
+     */
+    private function titleFromUrl(string $url): string
+    {
+        $slug = trim((string) parse_url($url, PHP_URL_PATH), '/');
+        $slug = (string) (preg_replace('/\.(html?|php|aspx)$/i', '', $slug) ?? $slug);
+        $last = Str::afterLast($slug, '/');
+
+        $words = Str::of($last)
+            ->replace(['-', '_'], ' ')
+            // Trailing "recipe" is noise in a list of recipes.
+            ->replaceMatches('/\brecipes?\b/i', '')
+            ->squish()
+            ->title()
+            ->value();
+
+        return $words !== '' ? $words : (parse_url($url, PHP_URL_HOST) ?: 'Untitled recipe');
     }
 
     /**
