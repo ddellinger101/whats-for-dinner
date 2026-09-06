@@ -88,6 +88,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/grocery/{item}', [GroceryController::class, 'destroy'])->name('grocery.destroy');
     Route::post('/grocery/{item}/stocked', [GroceryController::class, 'markStocked'])->name('grocery.stocked');
     Route::post('/grocery/{item}/aisle', [GroceryController::class, 'setAisle'])->name('grocery.aisle');
+    Route::post('/grocery/{item}/quantity', [GroceryController::class, 'updateQuantity'])->name('grocery.quantity');
     Route::post('/grocery/clear-purchased', [GroceryController::class, 'clearPurchased'])->name('grocery.clear');
 
     // "Try something new" — recipes from outside the household's own library.

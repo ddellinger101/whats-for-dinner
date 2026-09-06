@@ -111,6 +111,42 @@ class GroceryController extends Controller
     }
 
     /**
+     * Change how much of something is being bought.
+     *
+     * The plan needs two chicken breasts; the shop sells eight. What the week
+     * asked for is kept, so the surplus reads as a deliberate buy rather than a
+     * miscalculation — and once it is ticked off, the whole eight goes into the
+     * pantry while the meals still only consume two. The remainder then ages
+     * into "use these up" on its own, which is the point.
+     */
+    public function updateQuantity(Request $request, GroceryListItem $item): RedirectResponse
+    {
+        $validated = $request->validate([
+            'quantity' => ['nullable', 'numeric', 'min:0', 'max:10000'],
+            'unit' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $before = $item->quantity === null ? null : (float) $item->quantity;
+        $after = $validated['quantity'] === null || $validated['quantity'] === ''
+            ? null
+            : (float) $validated['quantity'];
+
+        $item->update([
+            'quantity' => $after,
+            'unit' => $validated['unit'] ?? $item->unit,
+        ]);
+
+        // Editing something already ticked off means the pantry was stocked
+        // from the old figure, so it is corrected by the difference rather than
+        // being left quietly wrong.
+        if ($item->status === GroceryItemStatus::Purchased && $item->ingredient_id) {
+            $this->inventory->adjustBy($item->ingredient, ($after ?? 0) - ($before ?? 0), $item->unit);
+        }
+
+        return back()->with('status', 'Quantity updated.');
+    }
+
+    /**
      * Correcting an item's aisle also teaches the guesser, since it looks at
      * what the same name was last filed under.
      */

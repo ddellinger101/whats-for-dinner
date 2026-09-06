@@ -55,13 +55,19 @@ class GroceryListBuilder
             ->map(function ($ingredient) use ($component, $multiplier, $recipe, $addedOn) {
                 $perServing = $ingredient->pivot->quantity_per_serving;
 
+                // Quantities are stored per serving, so the recipe's own yield
+                // has to be reapplied before the scaling multiplier.
+                $needed = $perServing === null
+                    ? null
+                    : $perServing * $recipe->base_servings * $multiplier;
+
                 return GroceryListItem::create([
                     'item_name' => $ingredient->name,
-                    // Quantities are stored per serving, so the recipe's own
-                    // yield has to be reapplied before the scaling multiplier.
-                    'quantity' => $perServing === null
-                        ? null
-                        : $perServing * $recipe->base_servings * $multiplier,
+                    'quantity' => $needed,
+                    // Kept so an edited line still shows what the week asked
+                    // for, rather than looking like the plan wanted a whole
+                    // pack.
+                    'planned_quantity' => $needed,
                     'unit' => $ingredient->pivot->unit ?? $ingredient->default_unit,
                     'aisle' => $this->aisles->guess($ingredient->name, $ingredient),
                     'source' => GroceryItemSource::AutoRecipe,
@@ -91,6 +97,7 @@ class GroceryListBuilder
             ->map(fn (string $line) => GroceryListItem::create([
                 'item_name' => $line,
                 'quantity' => $component->servings_needed,
+                'planned_quantity' => $component->servings_needed,
                 'unit' => null,
                 'aisle' => $this->aisles->guess($line),
                 'source' => GroceryItemSource::AutoSimpleItem,

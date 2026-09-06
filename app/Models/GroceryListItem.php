@@ -17,7 +17,7 @@ class GroceryListItem extends Model
     use HasFactory, HasUuids, \Illuminate\Database\Eloquent\SoftDeletes;
 
     protected $fillable = [
-        'item_name', 'quantity', 'unit', 'aisle', 'source', 'status',
+        'item_name', 'quantity', 'planned_quantity', 'unit', 'aisle', 'source', 'status',
         'added_date', 'source_component_id', 'ingredient_id',
     ];
 
@@ -29,7 +29,27 @@ class GroceryListItem extends Model
             'aisle' => \App\Enums\GroceryAisle::class,
             'added_date' => \App\Casts\DateOnly::class,
             'quantity' => 'decimal:3',
+            'planned_quantity' => 'decimal:3',
         ];
+    }
+
+    /**
+     * Buying more than the week needs, on purpose — the pack size did not match
+     * the recipe. The surplus is not waste; it lands in the pantry and the
+     * ranker starts looking for something else to put it in.
+     */
+    public function isOverBought(): bool
+    {
+        return $this->quantity !== null
+            && $this->planned_quantity !== null
+            && (float) $this->quantity > (float) $this->planned_quantity;
+    }
+
+    public function surplus(): ?float
+    {
+        return $this->isOverBought()
+            ? round((float) $this->quantity - (float) $this->planned_quantity, 3)
+            : null;
     }
 
     public function sourceComponent(): BelongsTo

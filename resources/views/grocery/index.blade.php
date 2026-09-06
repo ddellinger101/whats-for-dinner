@@ -116,18 +116,71 @@
                             </button>
                         </form>
 
+                        @php
+                            $amount = $item->quantity === null
+                                ? null
+                                : trim(rtrim(rtrim(number_format((float) $item->quantity, 2), '0'), '.')
+                                    .' '.($item->unit ?? ''));
+                        @endphp
+
                         <div class="min-w-0 flex-1">
-                            <p class="truncate text-sm font-medium
-                                      {{ $bought ? 'text-ink-400 line-through' : 'text-ink-900' }}">
-                                @if ($item->quantity !== null)
-                                    <span class="{{ $bought ? '' : 'text-ink-600' }}">
-                                        {{ rtrim(rtrim(number_format((float) $item->quantity, 2), '0'), '.') }}{{ $item->unit ? ' '.$item->unit : '' }}
-                                    </span>
-                                @endif
-                                {{ $item->item_name }}
-                            </p>
+                            <div class="flex items-baseline gap-1.5">
+                                {{-- The amount is the control: the shop sells
+                                     what it sells, and changing it here is the
+                                     whole point of the line. --}}
+                                <details class="relative shrink-0">
+                                    <summary class="cursor-pointer list-none rounded px-1 py-0.5 text-sm font-medium
+                                                    transition hover:bg-ink-100
+                                                    {{ $bought ? 'text-ink-400' : 'text-ink-600' }}"
+                                             aria-label="Change how much {{ $item->item_name }} to buy">
+                                        {{ $amount ?? '+' }}
+                                    </summary>
+                                    <div class="absolute left-0 z-30 mt-1 w-60 rounded-xl border border-ink-200
+                                                bg-white p-3 shadow-xl">
+                                        <form method="POST" action="{{ route('grocery.quantity', $item) }}">
+                                            @csrf
+                                            <p class="text-xs text-ink-600">How much are you buying?</p>
+                                            <div class="mt-1.5 flex gap-2">
+                                                <input type="text" name="quantity" inputmode="decimal"
+                                                       value="{{ $item->quantity === null ? '' : rtrim(rtrim(number_format((float) $item->quantity, 2), '0'), '.') }}"
+                                                       class="min-h-9 w-20 rounded-lg border border-ink-200 px-2 text-sm
+                                                              outline-none focus:border-brand-500">
+                                                <input type="text" name="unit" value="{{ $item->unit }}"
+                                                       placeholder="unit" maxlength="20"
+                                                       class="min-h-9 w-20 rounded-lg border border-ink-200 px-2 text-sm
+                                                              outline-none focus:border-brand-500">
+                                            </div>
+                                            @if ($item->planned_quantity !== null)
+                                                <p class="mt-1.5 text-xs text-ink-400">
+                                                    This week&rsquo;s meals need
+                                                    {{ rtrim(rtrim(number_format((float) $item->planned_quantity, 2), '0'), '.') }}{{ $item->unit ? ' '.$item->unit : '' }}.
+                                                    Anything over goes to the pantry.
+                                                </p>
+                                            @endif
+                                            <button type="submit"
+                                                    class="mt-2 min-h-9 w-full rounded-lg bg-brand-600 px-3 text-sm
+                                                           font-semibold text-white transition hover:bg-brand-700">
+                                                Save
+                                            </button>
+                                        </form>
+                                    </div>
+                                </details>
+
+                                <span class="min-w-0 flex-1 truncate text-sm font-medium
+                                             {{ $bought ? 'text-ink-400 line-through' : 'text-ink-900' }}">
+                                    {{ $item->item_name }}
+                                </span>
+                            </div>
+
                             <p class="truncate text-xs text-ink-400">
-                                @if ($item->sourceComponent)
+                                @if ($item->isOverBought())
+                                    {{-- Named so the extra reads as a deliberate
+                                         buy rather than a mistake. --}}
+                                    <span class="text-leaf-600">
+                                        {{ rtrim(rtrim(number_format((float) $item->planned_quantity, 2), '0'), '.') }} for this week,
+                                        rest to the pantry
+                                    </span>
+                                @elseif ($item->sourceComponent)
                                     for {{ $item->sourceComponent->displayName() }}
                                 @else
                                     {{ $item->source->label() }}

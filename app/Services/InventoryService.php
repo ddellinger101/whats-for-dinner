@@ -80,6 +80,37 @@ class InventoryService
     }
 
     /**
+     * Correct what is on hand by a difference, for when the amount bought turns
+     * out not to be the amount recorded.
+     *
+     * An unquantified pantry entry is left unquantified: adding a number to
+     * "some, amount unknown" would invent a precision nobody has.
+     */
+    public function adjustBy(?Ingredient $ingredient, float $delta, ?string $unit = null): ?InventoryFlag
+    {
+        if (! $ingredient || $delta === 0.0) {
+            return null;
+        }
+
+        $flag = InventoryFlag::where('ingredient_id', $ingredient->id)->first();
+
+        if (! $flag || $flag->quantity === null) {
+            return $flag;
+        }
+
+        $remaining = round((float) $flag->quantity + $delta, 3);
+
+        $flag->update([
+            'quantity' => max(0, $remaining),
+            'has_stock' => $remaining > 0,
+            'unit' => $flag->unit ?? $unit,
+            'last_updated' => now(),
+        ]);
+
+        return $flag;
+    }
+
+    /**
      * A meal was cooked, so its ingredients came out of the pantry.
      *
      * Scaled the same way the grocery list was (spec 4.3), so what is deducted
