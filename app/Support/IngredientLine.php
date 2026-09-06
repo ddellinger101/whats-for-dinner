@@ -18,6 +18,16 @@ readonly class IngredientLine
         public string $name,
     ) {}
 
+    /**
+     * Slashes that are not the slash.
+     *
+     * Recipe sites typeset "1/2" with U+2044 FRACTION SLASH or U+2215 DIVISION
+     * SLASH, which look identical and match nothing. Normalised before the
+     * quantity is read, or "1⁄2 cup" parses as a quantity of 1 and an
+     * ingredient called "⁄2 cup ...".
+     */
+    private const SLASHES = ["\u{2044}" => '/', "\u{2215}" => '/', "\u{FF0F}" => '/'];
+
     /** Vulgar fractions appear constantly on recipe sites. */
     private const FRACTIONS = [
         '½' => '1/2', '⅓' => '1/3', '⅔' => '2/3', '¼' => '1/4', '¾' => '3/4',
@@ -63,6 +73,9 @@ readonly class IngredientLine
         'to taste', 'optional', 'for serving', 'for garnish', 'plus more',
         'room temperature', 'at room temperature', 'finely', 'thinly', 'roughly',
         'freshly', 'cut into', 'torn', 'crumbled', 'seeded', 'stemmed', 'zested',
+        // After "roughly", so that word is consumed whole rather than leaving
+        // "ly" behind.
+        'rough', 'coarse', 'coarsely', 'lightly', 'well',
     ];
 
     /**
@@ -93,6 +106,7 @@ readonly class IngredientLine
         // Leading punctuation left over from list markup: "/ /3-4lbs beef".
         $working = preg_replace('/^[^\p{L}\p{N}]+/u', '', $working) ?? $working;
         $working = self::stripLabel($working);
+        $working = strtr($working, self::SLASHES);
         $working = strtr($working, self::FRACTIONS);
         $working = self::normaliseAmounts($working);
 
@@ -267,6 +281,10 @@ readonly class IngredientLine
         $text = preg_replace('/\s+/', ' ', $text) ?? $text;
         $text = trim($text, " \t\n\r\0\x0B-–—.*()[]");
 
-        return ucfirst($text);
+        // Not ucfirst: that works on bytes, so a name beginning with any
+        // multibyte character came back with its first byte mangled and the
+        // rest invalid UTF-8 — which the database then silently reduced to
+        // nothing, collapsing several ingredients into one blank row.
+        return $text === '' ? '' : mb_strtoupper(mb_substr($text, 0, 1)).mb_substr($text, 1);
     }
 }

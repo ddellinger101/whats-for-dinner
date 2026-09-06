@@ -70,6 +70,10 @@ class RecipeScrapingTest extends TestCase
             'alternation on a modifier' => ['Brown or jasmine rice', null, null, 'Brown or jasmine rice'],
             'modifier alternation, plural' => ['Medium or large shrimp', null, null, 'Medium or large shrimp'],
             'multipack' => ['12pk Yuengling', 12.0, null, 'Yuengling'],
+            // Typeset with U+2044 FRACTION SLASH, which looks identical to "/"
+            // and matches nothing.
+            'fraction slash' => ["1\u{2044}2 cup White wine", 0.5, 'cup', 'White wine'],
+            'division slash' => ["1\u{2215}4 teaspoon Dill", 0.25, 'tsp', 'Dill'],
             'leading list punctuation' => ['/ 2 lbs beef roast', 2.0, 'lb', 'Beef roast'],
         ];
     }

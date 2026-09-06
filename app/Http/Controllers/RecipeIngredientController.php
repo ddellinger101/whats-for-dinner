@@ -70,6 +70,13 @@ class RecipeIngredientController extends Controller
         DB::transaction(function () use ($lines, $recipe, &$added) {
             foreach ($lines as $line) {
                 $parsed = IngredientLine::parse($line);
+
+                // Belt and braces after a parsing fault produced empty names
+                // and silently collapsed six ingredients into one blank row.
+                if (trim($parsed->name) === '') {
+                    continue;
+                }
+
                 $ingredient = $this->ingredients->resolve($parsed->name);
 
                 if ($this->attach($recipe, $ingredient, $parsed->quantity, $parsed->unit)) {

@@ -95,6 +95,63 @@ class ManualIngredientEntryTest extends TestCase
         $this->assertSame(IngredientCategory::JarredCanned, $broth->category);
     }
 
+    /**
+     * The real paste that exposed this. Two faults together: the site typesets
+     * fractions with U+2044, which the quantity parser did not know, and
+     * ucfirst then mangled the first byte of that multibyte character —
+     * producing invalid UTF-8 that the database reduced to nothing, collapsing
+     * six ingredients into one blank row.
+     */
+    public function test_a_paste_using_typographic_fractions_is_read_correctly(): void
+    {
+        $recipe = $this->recipe(baseServings: 4);
+
+        $this->actingAs($this->user)
+            ->post(route('recipes.ingredients.bulk', $recipe), [
+                'lines' => "1\u{2044}2 cup White wine\n\n1 cup Heavy cream\n\n"
+                    ."1\u{2044}4 teaspoon Thyme dried\n\n1\u{2044}8 teaspoon Dill\n\n"
+                    ."1\u{2044}2 teaspoon Red pepper flakes\n\n1\u{2044}2 cup Parsley rough chopped",
+            ])
+            ->assertRedirect();
+
+        $ingredients = $recipe->fresh()->ingredients;
+
+        $this->assertCount(6, $ingredients, 'all six lines should become ingredients');
+
+        $this->assertSame(
+            ['Dill', 'Heavy cream', 'Parsley', 'Red pepper flakes', 'Thyme dried', 'White wine'],
+            $ingredients->pluck('name')->sort()->values()->all(),
+        );
+
+        // Every name is valid UTF-8, none blank.
+        foreach ($ingredients as $ingredient) {
+            $this->assertNotSame('', trim($ingredient->name));
+            $this->assertTrue(mb_check_encoding($ingredient->name, 'UTF-8'), $ingredient->name);
+        }
+
+        // Half a cup across four servings.
+        $wine = $ingredients->firstWhere('name', 'White wine');
+        $this->assertEqualsWithDelta(0.125, (float) $wine->pivot->quantity_per_serving, 0.0001);
+        $this->assertSame('cup', $wine->pivot->unit);
+    }
+
+    /** A name that survives as multibyte must not be corrupted either. */
+    public function test_a_non_ascii_ingredient_name_is_preserved(): void
+    {
+        $recipe = $this->recipe();
+
+        $this->actingAs($this->user)
+            ->post(route('recipes.ingredients.bulk', $recipe), ['lines' => "2 Jalapeños\n1 cup Crème fraîche"]);
+
+        $names = $recipe->fresh()->ingredients->pluck('name')->sort()->values()->all();
+
+        foreach ($names as $name) {
+            $this->assertTrue(mb_check_encoding($name, 'UTF-8'), $name);
+        }
+
+        $this->assertContains('Jalapeños', $names);
+    }
+
     public function test_the_same_ingredient_is_not_added_twice(): void
     {
         $recipe = $this->recipe();

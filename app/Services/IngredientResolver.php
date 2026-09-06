@@ -23,6 +23,12 @@ class IngredientResolver
     {
         $name = Str::of($name)->squish()->limit(80, '')->value();
 
+        // An ingredient with no name matches nothing and helps nobody; it is
+        // always a parsing fault upstream, and creating the row hides it.
+        if ($name === '') {
+            throw new \InvalidArgumentException('An ingredient needs a name.');
+        }
+
         // One recipe writes "1 onion", the next writes "2 onions". Match every
         // form and keep whichever spelling arrived first. Storing a forced
         // singular would be worse: Str::singular mangles mass nouns such as
