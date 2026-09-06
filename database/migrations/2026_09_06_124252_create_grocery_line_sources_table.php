@@ -52,12 +52,23 @@ return new class extends Migration
             ]);
         }
 
+        /*
+         * Three statements, in this order, because the two engines object for
+         * different reasons. The column carried a foreign key and an index of
+         * its own: MySQL will not drop the index while the key still needs it,
+         * and SQLite will not drop the column while the index still names it.
+         * Key, then index, then column satisfies both.
+         */
         Schema::table('grocery_list_items', function (Blueprint $table) {
-            // Dropped by name first. The column carried its own index as well
-            // as the foreign key, and SQLite refuses the drop while an index
-            // still refers to a column that is going away.
+            $table->dropForeign(['source_component_id']);
+        });
+
+        Schema::table('grocery_list_items', function (Blueprint $table) {
             $table->dropIndex(['source_component_id']);
-            $table->dropConstrainedForeignId('source_component_id');
+        });
+
+        Schema::table('grocery_list_items', function (Blueprint $table) {
+            $table->dropColumn('source_component_id');
         });
     }
 
