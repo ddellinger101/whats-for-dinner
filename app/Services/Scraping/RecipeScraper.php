@@ -115,12 +115,14 @@ class RecipeScraper
         $recipeNode = $this->findRecipeNode($html);
 
         $ingredients = [];
+        $steps = [];
         $title = null;
         $image = null;
         $servings = null;
 
         if ($recipeNode !== null) {
             $ingredients = $this->ingredientLines($recipeNode);
+            $steps = $this->instructionSteps($recipeNode['recipeInstructions'] ?? null);
             $title = is_string($recipeNode['name'] ?? null) ? trim($recipeNode['name']) : null;
             $image = $this->imageUrl($recipeNode['image'] ?? null);
             $servings = $this->servings($recipeNode['recipeYield'] ?? null);
@@ -130,7 +132,7 @@ class RecipeScraper
         // decent picture, which is worth having on its own.
         $image ??= $this->openGraphImage($html);
 
-        if ($ingredients === [] && $image === null) {
+        if ($ingredients === [] && $steps === [] && $image === null) {
             return null;
         }
 
@@ -139,6 +141,7 @@ class RecipeScraper
             title: $title,
             imageUrl: $image ? $this->absolutise($image, $url) : null,
             ingredientLines: $ingredients,
+            steps: $steps,
             servings: $servings,
         );
     }
@@ -211,6 +214,115 @@ class RecipeScraper
             ->map(fn (string $line) => trim(html_entity_decode(strip_tags($line))))
             ->filter(fn (string $line) => $line !== '' && mb_strlen($line) < 200)
             ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Flatten schema.org recipeInstructions into ordered steps.
+     *
+     * The spec permits four shapes and sites use all of them: one blob of text
+     * or HTML, a plain list of strings, a list of HowToStep objects, or
+     * HowToSections each holding their own steps. Sections are flattened —
+     * their names are useful for reading but would break a numbered list you
+     * are trying to keep your place in.
+     *
+     * @return list<string>
+     */
+    private function instructionSteps(mixed $instructions): array
+    {
+        $steps = collect($this->flattenInstructions($instructions))
+            ->map(fn (string $step) => $this->tidyStep($step))
+            ->filter(fn (string $step) => $step !== '' && mb_strlen($step) < 2000)
+            ->values();
+
+        // A single blob means the site wrote its whole method as one string;
+        // splitting it makes the difference between a wall of text and
+        // something you can follow while cooking.
+        if ($steps->count() === 1) {
+            $steps = collect($this->splitBlob($steps->first()));
+        }
+
+        return $steps
+            ->map(fn (string $step) => trim($step))
+            ->filter(fn (string $step) => mb_strlen($step) > 2)
+            ->take(60)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function flattenInstructions(mixed $node): array
+    {
+        if (is_string($node)) {
+            return [$node];
+        }
+
+        if (! is_array($node)) {
+            return [];
+        }
+
+        // A HowToSection holds its own list; a HowToStep holds its text.
+        if (isset($node['itemListElement'])) {
+            return $this->flattenInstructions($node['itemListElement']);
+        }
+
+        if (isset($node['text']) && is_string($node['text'])) {
+            return [$node['text']];
+        }
+
+        // Some sites give a step only a name.
+        if (isset($node['name']) && is_string($node['name']) && ! isset($node['itemListElement'])) {
+            return [$node['name']];
+        }
+
+        $steps = [];
+
+        foreach ($node as $child) {
+            $steps = [...$steps, ...$this->flattenInstructions($child)];
+        }
+
+        return $steps;
+    }
+
+    /**
+     * Strip the markup a step arrives wrapped in, keeping its line breaks.
+     */
+    private function tidyStep(string $step): string
+    {
+        $step = preg_replace('#<(br|/li|/p|/div)[^>]*>#i', "\n", $step) ?? $step;
+        $step = html_entity_decode(strip_tags($step), ENT_QUOTES | ENT_HTML5);
+        $step = preg_replace('/[ \t]+/u', ' ', $step) ?? $step;
+
+        return trim($step);
+    }
+
+    /**
+     * Break one blob of method into steps, on line breaks first and numbered
+     * markers second. Sentences are deliberately not split on: "Bake at 350
+     * degrees F. for 20 minutes" is one instruction, not two.
+     *
+     * @return list<string>
+     */
+    private function splitBlob(string $blob): array
+    {
+        $lines = collect(preg_split('/\R+/u', $blob) ?: [])
+            ->map(fn ($line) => trim((string) $line))
+            ->filter()
+            ->values();
+
+        if ($lines->count() > 1) {
+            return $lines->all();
+        }
+
+        // "1. Do this 2. Do that" — split before a number that starts a step.
+        $parts = preg_split('/(?<=[.!?])\s+(?=\d{1,2}[.)]\s)|(?=\bStep\s+\d+\b)/iu', $blob) ?: [];
+
+        return collect($parts)
+            ->map(fn ($part) => trim(preg_replace('/^\d{1,2}[.)]\s*/u', '', (string) $part) ?? (string) $part))
+            ->filter()
             ->values()
             ->all();
     }

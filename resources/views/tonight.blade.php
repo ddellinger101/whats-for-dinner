@@ -79,6 +79,29 @@
                         </p>
                     @endif
 
+                    {{-- Spec 5 asks for "instructions/link" here. The link alone
+                         meant leaving the app to cook, which is most of what
+                         this screen exists to avoid. --}}
+                    @if ($recipe->hasInstructions())
+                        <h3 class="mt-5 text-sm font-semibold text-ink-900">Method</h3>
+                        <ol class="mt-2 space-y-3">
+                            @foreach ($recipe->instructions as $index => $step)
+                                <li class="flex gap-3">
+                                    <span class="grid size-7 shrink-0 place-items-center rounded-full bg-brand-600
+                                                 text-xs font-semibold text-white">{{ $index + 1 }}</span>
+                                    <span class="min-w-0 flex-1 pt-0.5 text-base/7 text-ink-800">{{ $step }}</span>
+                                </li>
+                            @endforeach
+                        </ol>
+                    @elseif (($recipe->recipe_links ?? []) !== [])
+                        <p class="mt-5 rounded-xl bg-ink-100 px-4 py-3 text-sm text-ink-600">
+                            No method saved for this one &mdash; open the recipe link above, or
+                            <a href="{{ route('recipes.show', $recipe) }}"
+                               class="font-medium text-brand-600 underline underline-offset-2">add it once</a>
+                            so it&rsquo;s here next time.
+                        </p>
+                    @endif
+
                     @if (filled($recipe->notes))
                         <div class="mt-5 rounded-xl bg-brand-50 px-4 py-3">
                             <h3 class="text-xs font-semibold uppercase tracking-wide text-brand-700">Notes</h3>

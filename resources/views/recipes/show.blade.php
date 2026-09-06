@@ -206,6 +206,49 @@
                 </form>
             </details>
 
+            {{-- ----------------------------------------------------- method --}}
+            <h2 class="mt-5 text-sm font-semibold text-ink-900">Method</h2>
+
+            @if ($recipe->hasInstructions())
+                <ol class="mt-2 space-y-2.5">
+                    @foreach ($recipe->instructions as $index => $step)
+                        <li class="flex gap-3 text-sm">
+                            <span class="grid size-6 shrink-0 place-items-center rounded-full bg-brand-50
+                                         text-xs font-semibold text-brand-700">{{ $index + 1 }}</span>
+                            <span class="min-w-0 flex-1 text-ink-800">{{ $step }}</span>
+                        </li>
+                    @endforeach
+                </ol>
+            @else
+                <p class="mt-2 rounded-xl bg-ink-100 px-4 py-3 text-sm text-ink-600">
+                    No method recorded yet.
+                    @if (($recipe->recipe_links ?? []) !== [])
+                        It may come through if you fetch from the link, or paste it below.
+                    @endif
+                </p>
+            @endif
+
+            <details class="mt-2" @if (! $recipe->hasInstructions()) open @endif>
+                <summary class="cursor-pointer list-none text-sm font-medium text-brand-600 hover:text-brand-700">
+                    {{ $recipe->hasInstructions() ? 'Edit the method' : 'Add the method' }}
+                </summary>
+                <form method="POST" action="{{ route('recipes.instructions', $recipe) }}" class="mt-2">
+                    @csrf
+                    <textarea name="instructions" rows="8"
+                              placeholder="Brown the beef in a large pan.&#10;Add the onion and cook until soft.&#10;Stir in the spices and simmer for 10 minutes."
+                              class="w-full rounded-xl border border-ink-200 px-3.5 py-2.5 text-base outline-none
+                                     focus:border-brand-500 focus:ring-2 focus:ring-brand-200">{{ implode("\n", $recipe->instructions ?? []) }}</textarea>
+                    <p class="mt-1 text-xs text-ink-400">
+                        One step per line. Numbering is added for you, so you don&rsquo;t need to type it.
+                    </p>
+                    <button type="submit"
+                            class="mt-2 min-h-tap rounded-xl bg-brand-600 px-5 font-semibold text-white
+                                   transition hover:bg-brand-700">
+                        Save method
+                    </button>
+                </form>
+            </details>
+
             {{-- ------------------------------------------------ yield + photo --}}
             <div class="mt-5 grid gap-3 border-t border-ink-100 pt-4 sm:grid-cols-2">
                 <form method="POST" action="{{ route('recipes.servings', $recipe) }}">

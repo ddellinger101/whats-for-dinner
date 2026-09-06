@@ -17,15 +17,24 @@ class ScrapeRecipes extends Command
     protected $signature = 'recipes:scrape
         {--limit=25 : How many recipes to attempt in this run}
         {--recipe= : Scrape one recipe by name}
+        {--missing-instructions : Re-read pages for recipes that have no method yet}
         {--retry : Include recipes already attempted and left without ingredients}';
 
-    protected $description = 'Fetch ingredients and images from recipe links';
+    protected $description = 'Fetch ingredients, method and images from recipe links';
 
     public function handle(RecipeDetailImporter $importer, RecipeScraper $scraper): int
     {
         $query = Recipe::query()
             ->when($this->option('recipe'), fn ($q, $name) => $q->where('name', $name))
-            ->when(! $this->option('recipe'), function ($q) {
+            // Instructions arrived after the archive was already scraped, so
+            // this mode revisits recipes that have ingredients but no method.
+            // Ingredients entered by hand are protected inside the importer.
+            ->when(! $this->option('recipe') && $this->option('missing-instructions'), function ($q) {
+                $q->where(function ($q) {
+                    $q->whereNull('instructions')->orWhereJsonLength('instructions', 0);
+                });
+            })
+            ->when(! $this->option('recipe') && ! $this->option('missing-instructions'), function ($q) {
                 $q->where('ingredients_status', IngredientsStatus::NotYetAdded->value);
             });
 
@@ -54,10 +63,16 @@ class ScrapeRecipes extends Command
         foreach ($candidates as $recipe) {
             $ok = $importer->import($recipe);
 
+            $fresh = $recipe->fresh();
+
             if ($ok) {
                 $succeeded++;
-                $count = $recipe->fresh()->ingredients()->count();
-                $this->line("  <fg=green>OK</>   {$recipe->name} ({$count} ingredients)");
+                $this->line(sprintf(
+                    '  <fg=green>OK</>   %s (%d ingredients, %d steps)',
+                    $recipe->name,
+                    $fresh->ingredients()->count(),
+                    count($fresh->instructions ?? []),
+                ));
             } else {
                 $failed[] = $recipe->name;
                 $this->line("  <fg=yellow>--</>   {$recipe->name}");
@@ -70,8 +85,12 @@ class ScrapeRecipes extends Command
             ['No usable data (manual entry needed)', count($failed)],
         ]);
 
-        $remaining = Recipe::where('ingredients_status', IngredientsStatus::NotYetAdded->value)->count();
-        $this->line("{$remaining} recipes still without ingredients.");
+        $withoutIngredients = Recipe::where('ingredients_status', IngredientsStatus::NotYetAdded->value)->count();
+        $withoutSteps = Recipe::where(function ($q) {
+            $q->whereNull('instructions')->orWhereJsonLength('instructions', 0);
+        })->count();
+
+        $this->line("{$withoutIngredients} recipes still without ingredients, {$withoutSteps} without a method.");
 
         return self::SUCCESS;
     }

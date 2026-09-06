@@ -115,6 +115,8 @@ Route::middleware('auth')->group(function () {
         ->name('recipes.ingredients.destroy');
     Route::post('/recipes/{recipe}/base-servings', [RecipeIngredientController::class, 'updateServings'])
         ->name('recipes.servings');
+    Route::post('/recipes/{recipe}/instructions', [RecipeIngredientController::class, 'updateInstructions'])
+        ->name('recipes.instructions');
     Route::post('/recipes/{recipe}/photo', [RecipeIngredientController::class, 'storePhoto'])
         ->name('recipes.photo.store');
     Route::delete('/recipes/{recipe}/photo', [RecipeIngredientController::class, 'destroyPhoto'])

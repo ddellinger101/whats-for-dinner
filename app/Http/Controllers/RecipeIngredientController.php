@@ -132,6 +132,33 @@ class RecipeIngredientController extends Controller
     }
 
     /**
+     * The method, one step per line.
+     *
+     * Kept as a list rather than a blob so it renders numbered — the point is
+     * being able to keep your place while cooking, which a paragraph does not
+     * allow.
+     */
+    public function updateInstructions(Request $request, Recipe $recipe): RedirectResponse
+    {
+        $validated = $request->validate([
+            'instructions' => ['nullable', 'string', 'max:20000'],
+        ]);
+
+        $steps = collect(preg_split('/\R+/u', (string) ($validated['instructions'] ?? '')))
+            ->map(fn ($line) => trim((string) $line))
+            // Numbers typed by hand are dropped: the list supplies its own.
+            ->map(fn (string $line) => (string) (preg_replace('/^\d{1,2}[.)]\s*/u', '', $line) ?? $line))
+            ->filter(fn (string $line) => $line !== '')
+            ->take(60)
+            ->values()
+            ->all();
+
+        $recipe->update(['instructions' => $steps]);
+
+        return back()->with('status', $steps === [] ? 'Method cleared.' : 'Method saved.');
+    }
+
+    /**
      * Spec addition: photograph a dish in the kitchen. An uploaded photo is
      * marked as user-provided, which permanently protects it from being
      * overwritten by a later scrape.

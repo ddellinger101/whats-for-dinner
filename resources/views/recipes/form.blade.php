@@ -117,6 +117,15 @@
         </div>
 
         <div>
+            <label for="instructions" class="block text-sm font-medium text-ink-800">Method</label>
+            <textarea id="instructions" name="instructions" rows="6"
+                      placeholder="Brown the beef in a large pan.&#10;Add the onion and cook until soft."
+                      class="mt-1.5 w-full rounded-xl border border-ink-200 px-3.5 py-2.5 text-base outline-none
+                             focus:border-brand-500 focus:ring-2 focus:ring-brand-200">{{ old('instructions', implode("\n", $recipe->instructions ?? [])) }}</textarea>
+            <p class="mt-1 text-xs text-ink-400">One step per line. Numbering is added for you.</p>
+        </div>
+
+        <div>
             <label for="notes" class="block text-sm font-medium text-ink-800">Notes</label>
             <textarea id="notes" name="notes" rows="3"
                       class="mt-1.5 w-full rounded-xl border border-ink-200 px-3.5 py-2.5 text-base outline-none

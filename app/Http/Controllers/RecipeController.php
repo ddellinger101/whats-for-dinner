@@ -103,6 +103,7 @@ class RecipeController extends Controller
             'category_tags.*' => ['string', 'in:'.implode(',', array_column(CategoryTag::cases(), 'value'))],
             'links' => ['nullable', 'string', 'max:4000'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'instructions' => ['nullable', 'string', 'max:20000'],
         ]);
 
         $links = collect(preg_split('/\r\n|\r|\n/', (string) ($validated['links'] ?? '')))
@@ -123,6 +124,13 @@ class RecipeController extends Controller
             'category_tags' => $tags,
             'recipe_links' => $links,
             'notes' => $validated['notes'] ?? null,
+            'instructions' => collect(preg_split('/\R+/u', (string) ($validated['instructions'] ?? '')))
+                ->map(fn ($line) => trim((string) $line))
+                ->map(fn (string $line) => (string) (preg_replace('/^\d{1,2}[.)]\s*/u', '', $line) ?? $line))
+                ->filter(fn (string $line) => $line !== '')
+                ->take(60)
+                ->values()
+                ->all(),
             // Spec 3: the keto tag and the keto flag are two views of one fact,
             // so setting either has to set the other.
             'is_keto' => in_array(CategoryTag::Keto->value, $tags, true),

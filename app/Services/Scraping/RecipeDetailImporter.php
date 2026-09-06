@@ -59,13 +59,25 @@ class RecipeDetailImporter
             $this->attachImage($recipe, $scraped->imageUrl);
         }
 
-        if (! $scraped->hasIngredients()) {
-            return false;
+        // Never overwritten. A method someone typed or corrected by hand is
+        // worth more than whatever the page says today.
+        if ($scraped->hasSteps() && ! $recipe->hasInstructions()) {
+            $recipe->update(['instructions' => $scraped->steps]);
+            $recipe->refresh();
         }
 
-        $this->attachIngredients($recipe, $scraped);
+        // Ingredients are replaced wholesale by a scrape, so a recipe whose
+        // ingredients were entered by hand keeps them — re-reading a page for
+        // its method must not quietly undo that work.
+        $keepIngredients = $recipe->ingredients_status === IngredientsStatus::ManuallyEntered;
 
-        return true;
+        if ($scraped->hasIngredients() && ! $keepIngredients) {
+            $this->attachIngredients($recipe, $scraped);
+
+            return true;
+        }
+
+        return $recipe->hasInstructions();
     }
 
     private function attachIngredients(Recipe $recipe, ScrapedRecipe $scraped): void

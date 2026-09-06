@@ -25,7 +25,7 @@ class Recipe extends Model
         'recipe_links', 'base_servings', 'rating', 'times_made',
         'ingredients_status', 'notes', 'created_from_import', 'last_cooked_on',
         'image_path', 'image_source_url', 'image_status',
-        'source', 'source_url', 'source_name', 'external_id',
+        'source', 'source_url', 'source_name', 'external_id', 'instructions',
     ];
 
     /**
@@ -56,6 +56,7 @@ class Recipe extends Model
             'meal_type' => MealType::class,
             'category_tags' => AsEnumCollection::class.':'.CategoryTag::class,
             'recipe_links' => 'array',
+            'instructions' => 'array',
             'rating' => Rating::class,
             'ingredients_status' => IngredientsStatus::class,
             'image_status' => ImageStatus::class,
@@ -110,6 +111,11 @@ class Recipe extends Model
     public function servingMultiplierFor(int $householdSize): int
     {
         return max(1, (int) ceil($householdSize / max(1, $this->base_servings)));
+    }
+
+    public function hasInstructions(): bool
+    {
+        return ($this->instructions ?? []) !== [];
     }
 
     public function hasImage(): bool
