@@ -19,6 +19,7 @@ enum CategoryTag: string
     // Cuisine
     case Mexican = 'mexican';
     case Italian = 'italian';
+    case Spanish = 'spanish';
     case Asian = 'asian';
     case Polynesian = 'polynesian';
     case American = 'american';
@@ -44,7 +45,10 @@ enum CategoryTag: string
     /** @return list<self> */
     public static function cuisines(): array
     {
-        return [self::Mexican, self::Italian, self::Asian, self::Polynesian, self::American];
+        return [
+            self::Mexican, self::Italian, self::Spanish,
+            self::Asian, self::Polynesian, self::American,
+        ];
     }
 
     /** @return list<self> */

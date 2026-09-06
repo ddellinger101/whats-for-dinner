@@ -266,21 +266,80 @@
                     <p class="mt-1 text-xs text-ink-400">Amounts stay the same; the per-serving split adjusts.</p>
                 </form>
 
-                <form method="POST" action="{{ route('recipes.photo.store', $recipe) }}"
-                      enctype="multipart/form-data">
-                    @csrf
-                    <label for="photo" class="block text-sm font-medium text-ink-800">
+                <div>
+                    <p class="block text-sm font-medium text-ink-800">
                         {{ $recipe->hasImage() ? 'Replace photo' : 'Add a photo' }}
-                    </label>
-                    {{-- capture hints a phone straight to its camera, which is the
-                         point: photograph the dish while it is on the table. --}}
-                    <input id="photo" type="file" name="photo" accept="image/*" capture="environment" required
-                           onchange="this.form.requestSubmit()"
-                           class="mt-1.5 block w-full text-sm text-ink-600
-                                  file:mr-3 file:min-h-tap file:rounded-xl file:border-0 file:bg-brand-600
-                                  file:px-4 file:font-semibold file:text-white hover:file:bg-brand-700">
-                    <p class="mt-1 text-xs text-ink-400">A photo you take is never replaced by a scraped image.</p>
-                </form>
+                    </p>
+
+                    {{-- Three separate forms rather than one with three inputs:
+                         each submits on its own, so an untouched field never
+                         fails validation for the one actually used.
+
+                         "capture" opens a phone straight into its camera, but
+                         it also stops that input offering the photo library at
+                         all — which is why taking and choosing are two buttons
+                         rather than one. On a desktop both simply open a file
+                         picker. --}}
+                    <div class="mt-1.5 flex flex-wrap gap-2">
+                        <form method="POST" action="{{ route('recipes.photo.store', $recipe) }}"
+                              enctype="multipart/form-data">
+                            @csrf
+                            <label class="inline-flex min-h-tap cursor-pointer items-center gap-2 rounded-xl
+                                          bg-brand-600 px-4 text-sm font-semibold text-white transition
+                                          hover:bg-brand-700 active:scale-95">
+                                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                    <circle cx="12" cy="13" r="4"/>
+                                </svg>
+                                Take a photo
+                                <input type="file" name="photo" accept="image/*" capture="environment"
+                                       class="sr-only" onchange="this.form.requestSubmit()">
+                            </label>
+                        </form>
+
+                        <form method="POST" action="{{ route('recipes.photo.store', $recipe) }}"
+                              enctype="multipart/form-data">
+                            @csrf
+                            <label class="inline-flex min-h-tap cursor-pointer items-center gap-2 rounded-xl
+                                          border border-ink-200 bg-white px-4 text-sm font-medium text-ink-800
+                                          transition hover:border-brand-400 active:scale-95">
+                                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                </svg>
+                                Choose a file
+                                <input type="file" name="photo" accept="image/*"
+                                       class="sr-only" onchange="this.form.requestSubmit()">
+                            </label>
+                        </form>
+                    </div>
+
+                    <details class="mt-2">
+                        <summary class="cursor-pointer list-none text-sm font-medium text-brand-600
+                                        hover:text-brand-700">
+                            Paste an image link
+                        </summary>
+                        <form method="POST" action="{{ route('recipes.photo.url', $recipe) }}" class="mt-2 flex gap-2">
+                            @csrf
+                            <input type="url" name="image_url" required inputmode="url"
+                                   placeholder="https://example.com/dish.jpg"
+                                   class="min-h-tap min-w-0 flex-1 rounded-xl border border-ink-200 px-3 text-base
+                                          outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200">
+                            <button type="submit"
+                                    class="min-h-tap shrink-0 rounded-xl bg-brand-600 px-4 text-sm font-semibold
+                                           text-white transition hover:bg-brand-700">Save</button>
+                        </form>
+                        <p class="mt-1 text-xs text-ink-400">
+                            Right-click the picture on the recipe page and copy the image address &mdash;
+                            not the address of the page itself.
+                        </p>
+                    </details>
+
+                    <p class="mt-1.5 text-xs text-ink-400">
+                        A photo you add is never replaced by a scraped one.
+                    </p>
+                </div>
             </div>
 
             {{-- ---------------------------------------------------- rating --}}

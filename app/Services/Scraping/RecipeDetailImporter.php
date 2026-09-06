@@ -7,11 +7,10 @@ use App\Enums\IngredientsStatus;
 use App\Models\Ingredient;
 use App\Models\Recipe;
 use App\Services\IngredientResolver;
+use App\Services\RecipeImageStore;
 use App\Support\IngredientLine;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -20,10 +19,6 @@ use Throwable;
  */
 class RecipeDetailImporter
 {
-    private const MAX_IMAGE_BYTES = 5_000_000;
-
-    private const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-
     /**
      * True when the source site refused to be read, rather than simply having
      * nothing useful on the page. Read by the caller to explain which of those
@@ -35,6 +30,7 @@ class RecipeDetailImporter
         public readonly RecipeScraper $scraper = new RecipeScraper,
         // Shared with manual entry so both routes map a name to the same row.
         private readonly IngredientResolver $ingredients = new IngredientResolver,
+        private readonly RecipeImageStore $images = new RecipeImageStore,
     ) {}
 
     /**
@@ -141,55 +137,17 @@ class RecipeDetailImporter
         return $this->ingredients->resolve($name);
     }
 
+    /**
+     * Shared with the three ways a household adds a picture by hand; the only
+     * difference here is the status, which marks it as scraped so a photo the
+     * household chose is never overwritten by one.
+     */
     private function attachImage(Recipe $recipe, string $imageUrl): void
     {
         try {
-            $response = Http::timeout(20)->get($imageUrl);
-
-            if (! $response->successful()) {
-                return;
-            }
-
-            $contentType = Str::before((string) $response->header('Content-Type'), ';');
-
-            if (! in_array($contentType, self::ALLOWED_IMAGE_TYPES, true)) {
-                return;
-            }
-
-            $body = $response->body();
-
-            if ($body === '' || strlen($body) > self::MAX_IMAGE_BYTES) {
-                return;
-            }
-
-            $extension = match ($contentType) {
-                'image/png' => 'png',
-                'image/webp' => 'webp',
-                default => 'jpg',
-            };
-
-            $path = 'recipes/'.$recipe->id.'.'.$extension;
-
-            // Same reason as the photo upload: a write that fails must not
-            // leave the recipe pointing at a file that was never created.
-            if (! Storage::disk('public')->put($path, $body)) {
-                Log::warning('Could not write a scraped recipe image', ['path' => $path]);
-
-                return;
-            }
-
-            // Replacing an image leaves the old file behind otherwise, and these
-            // accumulate one per re-import.
-            if ($recipe->image_path && $recipe->image_path !== $path) {
-                Storage::disk('public')->delete($recipe->image_path);
-            }
-
-            $recipe->update([
-                'image_path' => $path,
-                'image_source_url' => $imageUrl,
-                'image_status' => ImageStatus::Scraped,
-            ]);
+            $this->images->storeFromUrl($recipe, $imageUrl, ImageStatus::Scraped);
         } catch (Throwable $e) {
+            // A missing picture is not a reason to lose the recipe.
             Log::info('Recipe image fetch failed', ['url' => $imageUrl, 'error' => $e->getMessage()]);
         }
     }

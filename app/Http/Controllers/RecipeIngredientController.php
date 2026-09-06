@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\ImageStatus;
 use App\Enums\IngredientsStatus;
 use App\Models\Ingredient;
 use App\Models\Recipe;
 use App\Services\IngredientResolver;
+use App\Services\RecipeImageStore;
 use App\Support\IngredientLine;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 /**
  * Spec 4.7's manual fallback: when auto-import finds nothing — which is the
@@ -170,52 +170,47 @@ class RecipeIngredientController extends Controller
      * marked as user-provided, which permanently protects it from being
      * overwritten by a later scrape.
      */
-    public function storePhoto(Request $request, Recipe $recipe): RedirectResponse
+    public function storePhoto(Request $request, Recipe $recipe, RecipeImageStore $images): RedirectResponse
     {
         $request->validate([
-            'photo' => ['required', 'image', 'mimes:jpeg,png,webp', 'max:10240'],
+            'photo' => ['required', 'image', 'mimes:jpeg,png,webp,gif', 'max:10240'],
         ]);
 
-        $file = $request->file('photo');
-        $path = 'recipes/'.$recipe->id.'-photo.'.$file->extension();
-
-        // Checked, not assumed. An unwritable directory made put() return false
-        // while the recipe was still updated to point at the file, so the app
-        // recorded a photo that had never been saved and rendered a broken
-        // image with no error anywhere.
-        if (! Storage::disk('public')->put($path, $file->get())) {
-            return back()->withErrors([
-                'photo' => 'The photo could not be saved on the server. Nothing has been changed.',
-            ]);
+        try {
+            $saved = $images->storeUploaded($recipe, $request->file('photo'));
+        } catch (RuntimeException $e) {
+            return back()->withErrors(['photo' => $e->getMessage()]);
         }
 
-        $previous = $recipe->image_path;
-
-        $recipe->update([
-            'image_path' => $path,
-            'image_source_url' => null,
-            'image_status' => ImageStatus::Uploaded,
-        ]);
-
-        // Otherwise the replaced file lingers, one per re-upload.
-        if ($previous && $previous !== $path) {
-            Storage::disk('public')->delete($previous);
-        }
-
-        return back()->with('status', 'Photo saved.');
+        return $saved
+            ? back()->with('status', 'Photo saved.')
+            : back()->withErrors(['photo' => 'The photo could not be saved on the server. Nothing has been changed.']);
     }
 
-    public function destroyPhoto(Recipe $recipe): RedirectResponse
+    /**
+     * A picture from a link, for when the recipe is somewhere the scraper
+     * cannot read but the photo is right there on the page.
+     */
+    public function storePhotoUrl(Request $request, Recipe $recipe, RecipeImageStore $images): RedirectResponse
     {
-        if ($recipe->image_path) {
-            Storage::disk('public')->delete($recipe->image_path);
+        $validated = $request->validate([
+            'image_url' => ['required', 'url', 'max:2048'],
+        ]);
+
+        try {
+            $saved = $images->storeFromUrl($recipe, $validated['image_url']);
+        } catch (RuntimeException $e) {
+            return back()->withErrors(['image_url' => $e->getMessage()]);
         }
 
-        $recipe->update([
-            'image_path' => null,
-            'image_source_url' => null,
-            'image_status' => ImageStatus::None,
-        ]);
+        return $saved
+            ? back()->with('status', 'Photo saved.')
+            : back()->withErrors(['image_url' => 'The photo could not be saved on the server.']);
+    }
+
+    public function destroyPhoto(Recipe $recipe, RecipeImageStore $images): RedirectResponse
+    {
+        $images->remove($recipe);
 
         return back()->with('status', 'Photo removed.');
     }

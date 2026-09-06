@@ -5,11 +5,11 @@ use App\Http\Controllers\DiscoverController;
 use App\Http\Controllers\GoogleController;
 use App\Http\Controllers\GroceryController;
 use App\Http\Controllers\HomeController;
-use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\MealPlanController;
 use App\Http\Controllers\PantryController;
 use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\RecipeIngredientController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SimpleItemController;
 use App\Http\Controllers\TonightController;
 use Illuminate\Support\Facades\Route;
@@ -122,6 +122,8 @@ Route::middleware('auth')->group(function () {
         ->name('recipes.instructions');
     Route::post('/recipes/{recipe}/photo', [RecipeIngredientController::class, 'storePhoto'])
         ->name('recipes.photo.store');
+    Route::post('/recipes/{recipe}/photo-url', [RecipeIngredientController::class, 'storePhotoUrl'])
+        ->name('recipes.photo.url');
     Route::delete('/recipes/{recipe}/photo', [RecipeIngredientController::class, 'destroyPhoto'])
         ->name('recipes.photo.destroy');
 });

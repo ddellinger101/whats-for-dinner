@@ -40,6 +40,15 @@ class RecipeTagGuesser
                 'calzone', 'stromboli', 'tortellini', 'orzo', 'primavera',
                 'sausage and peppers', 'bruschetta', 'focaccia',
             ],
+            // Tags are additive, so this list must avoid vocabulary Mexican
+            // also owns — "chorizo" and "empanada" are deliberately absent,
+            // since a dish using either would come out tagged both.
+            CategoryTag::Spanish->value => [
+                'spanish', 'paella', 'gazpacho', 'patatas bravas', 'romesco',
+                'manchego', 'albondigas', 'jamon', 'serrano ham', 'pisto',
+                'sangria', 'pan con tomate', 'tortilla espanola',
+                'tortilla española', 'catalan', 'basque', 'andalusian',
+            ],
             CategoryTag::Asian->value => [
                 // The cuisine's own name has to be in its own list. Without it
                 // "Polynesian Chicken" went untagged, which is an absurd miss.
@@ -126,6 +135,12 @@ class RecipeTagGuesser
             CategoryTag::Italian->value => [
                 'parmesan', 'mozzarella', 'marinara', 'ricotta', 'basil', 'pancetta',
                 'italian seasoning', 'prosciutto',
+            ],
+            // Saffron and manchego are shared with nothing else the
+            // archive cooks; smoked paprika is deliberately absent,
+            // since American barbecue rubs lean on it just as hard.
+            CategoryTag::Spanish->value => [
+                'saffron', 'manchego', 'piquillo', 'sherry vinegar',
             ],
             CategoryTag::Asian->value => [
                 'soy sauce', 'sesame oil', 'hoisin', 'rice vinegar', 'fish sauce',

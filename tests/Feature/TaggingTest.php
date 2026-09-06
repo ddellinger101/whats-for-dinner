@@ -9,6 +9,7 @@ use App\Enums\IngredientsStatus;
 use App\Enums\MealSlot;
 use App\Enums\MealTypeHint;
 use App\Enums\ProteinType;
+use App\Models\GroceryListItem;
 use App\Models\Ingredient;
 use App\Models\MealComponent;
 use App\Models\Recipe;
@@ -17,6 +18,7 @@ use App\Models\User;
 use App\Services\MealPlanner;
 use App\Support\ProteinGuesser;
 use App\Support\RecipeTagGuesser;
+use Database\Seeders\HouseholdSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -31,7 +33,7 @@ class TaggingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\HouseholdSeeder::class);
+        $this->seed(HouseholdSeeder::class);
         $this->user = User::factory()->create();
     }
 
@@ -73,7 +75,10 @@ class TaggingTest extends TestCase
     {
         $cuisines = collect(CategoryTag::cuisines())->map->value->all();
 
-        $this->assertSame(['mexican', 'italian', 'asian', 'polynesian', 'american'], $cuisines);
+        $this->assertSame(
+            ['mexican', 'italian', 'spanish', 'asian', 'polynesian', 'american'],
+            $cuisines,
+        );
         $this->assertContains(CategoryTag::ReadyToEat, CategoryTag::styles());
         $this->assertNotContains(CategoryTag::ReadyToEat, CategoryTag::cuisines());
         $this->assertSame('Ready To Eat', CategoryTag::ReadyToEat->label());
@@ -113,6 +118,22 @@ class TaggingTest extends TestCase
         $this->assertContains('asian', $this->guessTags('Beef Stir Fry'));
         $this->assertContains('polynesian', $this->guessTags('Hawaiian Pineapple Chicken'));
         $this->assertContains('american', $this->guessTags('Bacon Cheeseburger'));
+    }
+
+    /**
+     * Spanish and Mexican share a great deal of vocabulary, and tags are
+     * additive, so a keyword either owns can quietly tag both. Paella is
+     * Spanish alone; chorizo belongs to either and so tags neither.
+     */
+    public function test_spanish_does_not_bleed_into_mexican(): void
+    {
+        $paella = $this->guessTags('Chicken and Chorizo Paella');
+
+        $this->assertContains('spanish', $paella);
+        $this->assertNotContains('mexican', $paella);
+
+        $this->assertNotContains('spanish', $this->guessTags('Chorizo Tacos'));
+        $this->assertContains('spanish', $this->guessTags('Weeknight Rice', ['Saffron', 'Chicken thigh']));
     }
 
     /**
@@ -354,16 +375,16 @@ class TaggingTest extends TestCase
         $recipe = $this->recipeWith('Doomed Dish', ['Onion']);
         (new MealPlanner)->setPrimaryRecipe(Carbon::parse('2026-09-09'), MealSlot::Dinner, $recipe);
 
-        $this->assertSame(1, \App\Models\MealComponent::count());
-        $this->assertSame(1, \App\Models\GroceryListItem::count());
+        $this->assertSame(1, MealComponent::count());
+        $this->assertSame(1, GroceryListItem::count());
 
         $this->actingAs($this->user)
             ->delete(route('recipes.destroy', $recipe))
             ->assertRedirect(route('recipes'));
 
         $this->assertNull(Recipe::find($recipe->id));
-        $this->assertSame(0, \App\Models\MealComponent::count());
-        $this->assertSame(0, \App\Models\GroceryListItem::count());
+        $this->assertSame(0, MealComponent::count());
+        $this->assertSame(0, GroceryListItem::count());
         // The ingredient itself survives for other recipes.
         $this->assertSame(1, Ingredient::where('name', 'Onion')->count());
     }
@@ -374,11 +395,11 @@ class TaggingTest extends TestCase
         $recipe = $this->recipeWith('Doomed Dish', ['Onion']);
         (new MealPlanner)->setPrimaryRecipe(Carbon::parse('2026-09-09'), MealSlot::Dinner, $recipe);
 
-        \App\Models\GroceryListItem::firstOrFail()->markPurchased();
+        GroceryListItem::firstOrFail()->markPurchased();
 
         $this->actingAs($this->user)->delete(route('recipes.destroy', $recipe));
 
-        $this->assertSame(1, \App\Models\GroceryListItem::count());
+        $this->assertSame(1, GroceryListItem::count());
     }
 
     public function test_the_edit_screen_offers_deletion(): void

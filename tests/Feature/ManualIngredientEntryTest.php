@@ -8,10 +8,12 @@ use App\Enums\IngredientsStatus;
 use App\Models\Ingredient;
 use App\Models\Recipe;
 use App\Models\User;
+use Database\Seeders\HouseholdSeeder;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -28,7 +30,7 @@ class ManualIngredientEntryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\HouseholdSeeder::class);
+        $this->seed(HouseholdSeeder::class);
         $this->user = User::factory()->create();
     }
 
@@ -291,6 +293,86 @@ class ManualIngredientEntryTest extends TestCase
     }
 
     /**
+     * On a phone the single input carried capture="environment", which opens
+     * the camera and hides the photo library entirely — so a picture already
+     * saved to the device could not be used at all. Taking and choosing have
+     * to be separate controls, and only one of them may carry capture.
+     */
+    public function test_the_page_offers_all_three_ways_to_add_a_photo(): void
+    {
+        $recipe = $this->recipe();
+
+        $html = $this->actingAs($this->user)
+            ->get(route('recipes.show', $recipe))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Take a photo', $html);
+        $this->assertStringContainsString('Choose a file', $html);
+        $this->assertStringContainsString('Paste an image link', $html);
+        $this->assertStringContainsString(route('recipes.photo.url', $recipe), $html);
+        $this->assertSame(1, substr_count($html, 'capture="environment"'));
+    }
+
+    /** The third way in, for pages the scraper is refused by. */
+    public function test_a_photo_can_be_pasted_as_a_link(): void
+    {
+        Storage::fake('public');
+        Http::fake(['*' => Http::response('binary', 200, ['Content-Type' => 'image/webp'])]);
+        $recipe = $this->recipe();
+
+        $this->actingAs($this->user)
+            ->post(route('recipes.photo.url', $recipe), [
+                'image_url' => 'https://example.com/photos/dinner.webp',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $recipe->refresh();
+        // Counts as the household's own, so a later scrape leaves it alone.
+        $this->assertSame(ImageStatus::Uploaded, $recipe->image_status);
+        $this->assertSame('https://example.com/photos/dinner.webp', $recipe->image_source_url);
+        Storage::disk('public')->assertExists($recipe->image_path);
+    }
+
+    /**
+     * The likeliest mistake by far: copying the address of the page the
+     * picture sits on rather than of the picture. Saying so beats a recipe
+     * whose photo is silently a lump of HTML.
+     */
+    public function test_a_link_to_a_page_rather_than_a_picture_is_refused(): void
+    {
+        Storage::fake('public');
+        Http::fake(['*' => Http::response('<html>', 200, ['Content-Type' => 'text/html'])]);
+        $recipe = $this->recipe();
+
+        $this->actingAs($this->user)
+            ->post(route('recipes.photo.url', $recipe), [
+                'image_url' => 'https://example.com/recipes/hawaiian-meatballs/',
+            ])
+            ->assertSessionHasErrors('image_url');
+
+        $recipe->refresh();
+        $this->assertNull($recipe->image_path);
+        $this->assertSame(ImageStatus::None, $recipe->image_status);
+    }
+
+    /** A site that refuses the fetch says so rather than failing silently. */
+    public function test_a_refused_image_link_reports_the_status(): void
+    {
+        Storage::fake('public');
+        Http::fake(['*' => Http::response('nope', 403)]);
+        $recipe = $this->recipe();
+
+        $this->actingAs($this->user)
+            ->post(route('recipes.photo.url', $recipe), [
+                'image_url' => 'https://example.com/blocked.jpg',
+            ])
+            ->assertSessionHasErrors('image_url');
+
+        $this->assertNull($recipe->fresh()->image_path);
+    }
+
+    /**
      * A write that fails must not leave the recipe claiming a photo. An
      * unwritable directory did exactly that in production: put() returned
      * false, the recipe was updated anyway, and the app served a broken image
@@ -303,7 +385,7 @@ class ManualIngredientEntryTest extends TestCase
 
         // Stands in for the unwritable directory.
         Storage::shouldReceive('disk')->with('public')->andReturn(
-            tap(\Mockery::mock(\Illuminate\Contracts\Filesystem\Filesystem::class), function ($disk) {
+            tap(\Mockery::mock(Filesystem::class), function ($disk) {
                 $disk->shouldReceive('put')->andReturn(false);
             }),
         );
