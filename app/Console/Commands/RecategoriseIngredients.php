@@ -33,7 +33,10 @@ class RecategoriseIngredients extends Command
         // for ingredients whose category moved in this run. Anything corrected
         // in an earlier run keeps its stale cached date forever otherwise —
         // which is exactly what happened.
-        if ($this->option('refresh-dates')) {
+        // Given both, do both. Returning here regardless meant --apply
+        // --refresh-dates silently skipped every category change and reported
+        // only the dates, which reads exactly like it did the lot.
+        if ($this->option('refresh-dates') && ! $this->option('apply')) {
             return $this->refreshAllDates();
         }
 
@@ -56,7 +59,7 @@ class RecategoriseIngredients extends Command
         if ($changes === []) {
             $this->info('Every ingredient already matches the current rules.');
 
-            return self::SUCCESS;
+            return $this->option('refresh-dates') ? $this->refreshAllDates() : self::SUCCESS;
         }
 
         foreach ($changes as $change) {
@@ -102,7 +105,10 @@ class RecategoriseIngredients extends Command
                 ->whereNotNull('acquired_on')
                 ->get()
                 ->each(fn (InventoryFlag $flag) => $flag->update([
-                    'expires_on' => $flag->acquired_on->copy()->addDays($ingredient->fresh()->shelf_life_days),
+                    // Staples do not expire, here as in refreshAllDates().
+                    'expires_on' => $ingredient->isStaple()
+                        ? null
+                        : $flag->acquired_on->copy()->addDays($ingredient->fresh()->shelf_life_days),
                 ]))
                 ->count();
         }
@@ -113,7 +119,7 @@ class RecategoriseIngredients extends Command
             $this->info("Refreshed the use-by date on {$refreshed} pantry ".str('item')->plural($refreshed).'.');
         }
 
-        return self::SUCCESS;
+        return $this->option('refresh-dates') ? $this->refreshAllDates() : self::SUCCESS;
     }
 
     /**

@@ -308,6 +308,9 @@ class PantryStaplesTest extends TestCase
     public function test_refreshing_dates_leaves_the_rack_without_one(): void
     {
         $this->artisan('pantry:staples')->assertSuccessful();
+        // Both flags together must do both jobs: --refresh-dates used to
+        // return before the category pass, so this reported only the dates
+        // while looking like it had done the lot.
         $this->artisan('ingredients:recategorise --apply --refresh-dates')->assertSuccessful();
 
         $stapleIds = Ingredient::where('is_staple', true)->pluck('id');
@@ -315,6 +318,12 @@ class PantryStaplesTest extends TestCase
         $this->assertSame(
             0,
             InventoryFlag::whereIn('ingredient_id', $stapleIds)->whereNotNull('expires_on')->count(),
+        );
+
+        // The category pass ran too, rather than being skipped.
+        $this->assertSame(
+            IngredientCategory::PantryDry,
+            $this->resolve('Baking soda')->fresh()->category,
         );
     }
 
