@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class MealComponent extends Model
 {
@@ -42,9 +42,20 @@ class MealComponent extends Model
         return $this->belongsTo(SimpleItem::class);
     }
 
-    public function groceryListItems(): HasMany
+    /**
+     * One line can be buying for several meals now, so the link runs through
+     * the contributions rather than being a column on the line.
+     */
+    public function groceryListItems(): HasManyThrough
     {
-        return $this->hasMany(GroceryListItem::class, 'source_component_id');
+        return $this->hasManyThrough(
+            GroceryListItem::class,
+            GroceryLineSource::class,
+            'meal_component_id',
+            'id',
+            'id',
+            'grocery_list_item_id',
+        );
     }
 
     /**

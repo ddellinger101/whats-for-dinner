@@ -45,6 +45,14 @@ class AisleGuesser
                 'lunchable', 'charcuterie', 'deli tray', 'ready meal',
                 'prepared', 'hot bar', 'salad bar',
             ]],
+            // Pantry before drinks, for the same reason the category guesser
+            // puts condiments there: these are things you cook with, not
+            // things you pour. Without it "red wine vinegar" is filed by the
+            // wine and "baking soda" by the soda.
+            [GroceryAisle::Pantry, [
+                'oil', 'vinegar', 'cooking wine', 'rice wine', 'baking soda',
+                'baking powder', 'extract',
+            ]],
             [GroceryAisle::Drinks, [
                 'beer', 'wine', 'cider', 'soda', 'cola', 'juice', 'seltzer',
                 'sparkling water', 'coffee', 'tea', 'lemonade', 'kombucha',
@@ -53,7 +61,9 @@ class AisleGuesser
             ]],
             [GroceryAisle::Seafood, [
                 'shrimp', 'prawn', 'salmon', 'tuna', 'cod', 'tilapia', 'halibut',
-                'crab', 'lobster', 'scallop', 'ahi', 'mahi', 'fish', 'anchov',
+                // A stem, not a word: anchovy and anchovies share no plural
+                // the matcher would find on its own.
+                'crab', 'lobster', 'scallop', 'ahi', 'mahi', 'fish', 'anchov*',
                 'calamari', 'mussel', 'clam', 'oyster', 'seafood',
             ]],
             [GroceryAisle::Bakery, [
@@ -107,7 +117,7 @@ class AisleGuesser
 
         foreach ($this->nameRules() as [$aisle, $keywords]) {
             foreach ($keywords as $keyword) {
-                if (str_contains($name, $keyword)) {
+                if (KeywordMatch::matches($name, $keyword)) {
                     return $aisle;
                 }
             }

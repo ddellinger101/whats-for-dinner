@@ -7,6 +7,7 @@ use App\Enums\IngredientCategory;
 use App\Enums\MealSlot;
 use App\Enums\ProteinType;
 use App\Enums\Rating;
+use App\Models\GroceryLineSource;
 use App\Models\GroceryListItem;
 use App\Models\HouseholdSetting;
 use App\Models\Ingredient;
@@ -18,8 +19,10 @@ use App\Models\Recipe;
 use App\Models\RepeaterItem;
 use App\Models\SimpleItem;
 use App\Models\WeeklyHouseholdSchedule;
+use Database\Seeders\HouseholdSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class DataModelTest extends TestCase
@@ -29,7 +32,7 @@ class DataModelTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\HouseholdSeeder::class);
+        $this->seed(HouseholdSeeder::class);
     }
 
     public function test_recipe_stores_enums_and_json_collections(): void
@@ -165,7 +168,7 @@ class DataModelTest extends TestCase
         ]);
 
         $recipe->ingredients()->attach($carrot->id, [
-            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'id' => (string) Str::uuid(),
             'quantity_per_serving' => 0.5,
             'unit' => 'cup',
         ]);
@@ -275,21 +278,30 @@ class DataModelTest extends TestCase
             'servings_needed' => 2,
         ]);
 
-        GroceryListItem::create([
+        $line = GroceryListItem::create([
             'item_name' => 'Beef Chuck',
             'quantity' => 2,
             'unit' => 'lb',
             'source' => 'auto_recipe',
             'added_date' => '2026-09-05',
-            'source_component_id' => $component->id,
+        ]);
+
+        // A line records what each meal contributes to it, rather than naming
+        // one meal, because one line can be buying for several.
+        GroceryLineSource::create([
+            'grocery_list_item_id' => $line->id,
+            'meal_component_id' => $component->id,
+            'quantity' => 2,
+            'unit' => 'lb',
         ]);
 
         $this->assertCount(1, $component->groceryListItems);
         $this->assertSame(1, GroceryListItem::needed()->count());
 
-        // The FK nulls out rather than deleting the line, so a manually edited
-        // item is never silently lost.
+        // The contribution goes with the component; the line itself survives,
+        // so a manually edited item is never silently lost.
         $component->delete();
-        $this->assertNull(GroceryListItem::first()->source_component_id);
+        $this->assertSame(1, GroceryListItem::needed()->count());
+        $this->assertCount(0, $line->fresh()->sources);
     }
 }

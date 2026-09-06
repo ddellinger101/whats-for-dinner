@@ -188,12 +188,6 @@ class IngredientCategoryGuesser
      */
     private function matches(string $name, string $keyword): bool
     {
-        if (str_ends_with($keyword, '*')) {
-            return (bool) preg_match('/\b'.preg_quote(rtrim($keyword, '*'), '/').'/u', $name);
-        }
-
-        // A trailing plural is allowed, or anchoring both ends would quietly
-        // break most of the table: "carrot" would stop matching "carrots".
-        return (bool) preg_match('/\b'.preg_quote($keyword, '/').'(?:s|es)?\b/u', $name);
+        return KeywordMatch::matches($name, $keyword);
     }
 }

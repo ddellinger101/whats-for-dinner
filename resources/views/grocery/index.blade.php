@@ -184,8 +184,11 @@
                                             {{ rtrim(rtrim(number_format((float) $item->planned_quantity, 2), '0'), '.') }} for this week,
                                             rest to the pantry
                                         </span>
-                                    @elseif ($item->sourceComponent)
-                                        for {{ $item->sourceComponent->displayName() }}
+                                    @elseif ($reason = $item->reasonLabel())
+                                        {{-- One line can be buying for several
+                                             meals, so it says how many rather
+                                             than naming only the first. --}}
+                                        {{ $reason }}
                                     @else
                                         {{ $item->source->label() }}
                                     @endif

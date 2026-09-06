@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Enums\GroceryAisle;
 use App\Enums\GroceryItemSource;
 use App\Enums\GroceryItemStatus;
+use App\Models\GroceryLineSource;
 use App\Models\GroceryListItem;
+use App\Models\Ingredient;
 use App\Models\MealComponent;
 use App\Models\RepeaterItem;
 use App\Support\AisleGuesser;
@@ -67,21 +69,17 @@ class GroceryListBuilder
                     ? null
                     : $perServing * $recipe->base_servings * $multiplier;
 
-                return GroceryListItem::create([
-                    'item_name' => $ingredient->name,
-                    'quantity' => $needed,
-                    // Kept so an edited line still shows what the week asked
-                    // for, rather than looking like the plan wanted a whole
-                    // pack.
-                    'planned_quantity' => $needed,
-                    'unit' => $ingredient->pivot->unit ?? $ingredient->default_unit,
-                    'aisle' => $this->aisles->guess($ingredient->name, $ingredient),
-                    'source' => GroceryItemSource::AutoRecipe,
-                    'status' => GroceryItemStatus::Needed,
-                    'added_date' => $addedOn,
-                    'source_component_id' => $component->id,
-                    'ingredient_id' => $ingredient->id,
-                ]);
+                $unit = $ingredient->pivot->unit ?? $ingredient->default_unit;
+
+                $line = $this->lineFor(
+                    name: $ingredient->name,
+                    unit: $unit,
+                    source: GroceryItemSource::AutoRecipe,
+                    addedOn: $addedOn,
+                    ingredient: $ingredient,
+                );
+
+                return $this->contribute($line, $component, $needed, $unit);
             })
             ->values();
     }
@@ -100,18 +98,110 @@ class GroceryListBuilder
         }
 
         return collect($item->groceryLines())
-            ->map(fn (string $line) => GroceryListItem::create([
-                'item_name' => $line,
-                'quantity' => $component->servings_needed,
-                'planned_quantity' => $component->servings_needed,
-                'unit' => null,
-                'aisle' => $this->aisles->guess($line),
-                'source' => GroceryItemSource::AutoSimpleItem,
-                'status' => GroceryItemStatus::Needed,
-                'added_date' => $addedOn,
-                'source_component_id' => $component->id,
-            ]))
+            ->map(function (string $name) use ($component, $addedOn) {
+                $line = $this->lineFor(
+                    name: $name,
+                    unit: null,
+                    source: GroceryItemSource::AutoSimpleItem,
+                    addedOn: $addedOn,
+                );
+
+                return $this->contribute($line, $component, (float) $component->servings_needed, null);
+            })
             ->values();
+    }
+
+    /**
+     * The line this thing belongs on, made if it is not there yet.
+     *
+     * One line per thing, however many meals want it: olive oil in three
+     * recipes was three lines on the list and left the adding up to whoever
+     * was holding the phone in the shop.
+     *
+     * The unit is part of the match. Two cups and three tablespoons are both
+     * olive oil, but they are not five of anything, and inventing a total
+     * would be worse than showing two lines.
+     */
+    private function lineFor(
+        string $name,
+        ?string $unit,
+        GroceryItemSource $source,
+        Carbon $addedOn,
+        ?Ingredient $ingredient = null,
+    ): GroceryListItem {
+        $existing = GroceryListItem::query()
+            ->needed()
+            ->when(
+                $ingredient !== null,
+                fn ($q) => $q->where('ingredient_id', $ingredient->id),
+                fn ($q) => $q->whereNull('ingredient_id')
+                    ->whereRaw('LOWER(item_name) = ?', [mb_strtolower($name)]),
+            )
+            ->when($unit === null, fn ($q) => $q->whereNull('unit'), fn ($q) => $q->where('unit', $unit))
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        return GroceryListItem::create([
+            'item_name' => $ingredient->name ?? $name,
+            'unit' => $unit,
+            'aisle' => $this->aisles->guess($ingredient->name ?? $name, $ingredient),
+            'source' => $source,
+            'status' => GroceryItemStatus::Needed,
+            'added_date' => $addedOn,
+            'ingredient_id' => $ingredient?->id,
+        ]);
+    }
+
+    /**
+     * Record what this meal wants and restate the line's total.
+     */
+    private function contribute(
+        GroceryListItem $line,
+        MealComponent $component,
+        ?float $quantity,
+        ?string $unit,
+    ): GroceryListItem {
+        GroceryLineSource::updateOrCreate(
+            ['grocery_list_item_id' => $line->id, 'meal_component_id' => $component->id],
+            ['quantity' => $quantity, 'unit' => $unit],
+        );
+
+        return $this->recompute($line);
+    }
+
+    /**
+     * Add the contributions back up.
+     *
+     * An amount someone typed in themselves is left alone. The whole point of
+     * editing it is that the shop sells a pack of eight when the week needs
+     * two, and having the plan overwrite that on its next change would undo
+     * the decision.
+     */
+    private function recompute(GroceryListItem $line): GroceryListItem
+    {
+        $line->load('sources');
+
+        $quantities = $line->sources->pluck('quantity');
+
+        // Unknown amounts do not add up to a number, and pretending otherwise
+        // would understate the line.
+        $planned = $quantities->contains(null)
+            ? null
+            : round((float) $quantities->sum(), 3);
+
+        $wasUntouched = $line->quantity === null
+            || $line->planned_quantity === null
+            || (float) $line->quantity === (float) $line->planned_quantity;
+
+        $line->update([
+            'planned_quantity' => $planned,
+            'quantity' => $wasUntouched ? $planned : $line->quantity,
+        ]);
+
+        return $line->fresh();
     }
 
     /**
@@ -123,14 +213,45 @@ class GroceryListBuilder
      */
     public function removeForComponent(MealComponent $component): int
     {
-        return GroceryListItem::query()
-            ->where('source_component_id', $component->id)
-            ->whereIn('source', [
-                GroceryItemSource::AutoRecipe->value,
-                GroceryItemSource::AutoSimpleItem->value,
-            ])
-            ->where('status', GroceryItemStatus::Needed->value)
-            ->delete();
+        $sources = GroceryLineSource::with('groceryListItem')
+            ->where('meal_component_id', $component->id)
+            ->get();
+
+        $removed = 0;
+
+        foreach ($sources as $source) {
+            $line = $source->groceryListItem;
+            $source->delete();
+
+            if (! $line) {
+                continue;
+            }
+
+            // Once someone has ticked an item off, the line records a shopping
+            // decision rather than a plan, so it stays as it is. Manual lines
+            // are never touched at all.
+            $isAuto = in_array($line->source, [
+                GroceryItemSource::AutoRecipe,
+                GroceryItemSource::AutoSimpleItem,
+            ], true);
+
+            if (! $isAuto || $line->status !== GroceryItemStatus::Needed) {
+                continue;
+            }
+
+            // Other meals still want it, so the line stays and only this
+            // meal's share comes back off the total.
+            if ($line->sources()->exists()) {
+                $this->recompute($line);
+
+                continue;
+            }
+
+            $line->delete();
+            $removed++;
+        }
+
+        return $removed;
     }
 
     /**

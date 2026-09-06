@@ -35,7 +35,7 @@ class GroceryController extends Controller
         $this->grocery->syncDueRepeaters();
 
         $items = GroceryListItem::query()
-            ->with('sourceComponent.recipe', 'sourceComponent.simpleItem', 'ingredient')
+            ->with('sources.mealComponent.recipe', 'sources.mealComponent.simpleItem', 'ingredient')
             ->get()
             // Purchased lines stay in place, crossed off, rather than moving to
             // a separate list: the shop is walked aisle by aisle, and an item

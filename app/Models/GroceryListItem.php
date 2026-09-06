@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Casts\DateOnly;
+use App\Enums\GroceryAisle;
 use App\Enums\GroceryItemSource;
 use App\Enums\GroceryItemStatus;
 use Illuminate\Database\Eloquent\Builder;
@@ -9,6 +11,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class GroceryListItem extends Model
 {
@@ -18,7 +21,7 @@ class GroceryListItem extends Model
 
     protected $fillable = [
         'item_name', 'quantity', 'planned_quantity', 'unit', 'aisle', 'source', 'status',
-        'added_date', 'source_component_id', 'ingredient_id',
+        'added_date', 'ingredient_id',
     ];
 
     protected function casts(): array
@@ -26,8 +29,8 @@ class GroceryListItem extends Model
         return [
             'source' => GroceryItemSource::class,
             'status' => GroceryItemStatus::class,
-            'aisle' => \App\Enums\GroceryAisle::class,
-            'added_date' => \App\Casts\DateOnly::class,
+            'aisle' => GroceryAisle::class,
+            'added_date' => DateOnly::class,
             'quantity' => 'decimal:3',
             'planned_quantity' => 'decimal:3',
         ];
@@ -52,9 +55,33 @@ class GroceryListItem extends Model
             : null;
     }
 
-    public function sourceComponent(): BelongsTo
+    /**
+     * The planned meals this line is buying for. Several, since one line now
+     * covers every meal in the week that wants the thing.
+     */
+    public function sources(): HasMany
     {
-        return $this->belongsTo(MealComponent::class, 'source_component_id');
+        return $this->hasMany(GroceryLineSource::class);
+    }
+
+    /**
+     * What to call the reason this line exists — "for Tacos", or "for 3 meals"
+     * once naming them all would be longer than the item.
+     */
+    public function reasonLabel(): ?string
+    {
+        $names = $this->sources
+            ->map(fn (GroceryLineSource $s) => $s->mealComponent?->displayName())
+            ->filter()
+            ->unique()
+            ->values();
+
+        return match (true) {
+            $names->isEmpty() => null,
+            $names->count() === 1 => 'for '.$names->first(),
+            $names->count() === 2 => 'for '.$names->join(' and '),
+            default => "for {$names->count()} meals",
+        };
     }
 
     public function ingredient(): BelongsTo
