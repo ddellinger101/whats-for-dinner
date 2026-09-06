@@ -26,6 +26,20 @@
             </p>
         </div>
 
+        {{-- The point of knowing what is going off is doing something about it,
+             so the way to act on it sits next to the item rather than being
+             left as an exercise. --}}
+        <a href="{{ route('recipes', ['ingredient' => $flag->ingredient_id]) }}"
+           class="grid size-tap shrink-0 place-items-center rounded-lg transition hover:bg-ink-100
+                  {{ $urgent ? 'text-leaf-600 hover:text-leaf-600' : 'text-ink-300 hover:text-brand-600' }}"
+           aria-label="Find recipes using {{ $flag->ingredient->name }}"
+           title="Find recipes using this">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+            </svg>
+        </a>
+
         <details class="relative shrink-0">
             <summary class="grid size-tap cursor-pointer list-none place-items-center rounded-lg text-ink-300
                             transition hover:bg-ink-100 hover:text-brand-600"

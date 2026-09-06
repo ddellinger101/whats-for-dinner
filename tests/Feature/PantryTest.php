@@ -408,6 +408,70 @@ class PantryTest extends TestCase
         $this->assertSame(0, GroceryListItem::count());
     }
 
+    // ------------------------------------------- acting on what is going off
+
+    /** Knowing something is going off is only useful if you can act on it. */
+    public function test_each_pantry_item_offers_a_recipe_search(): void
+    {
+        $sourCream = $this->ingredient('Sour cream', IngredientCategory::Dairy, 2);
+        $this->inventory->add($sourCream, 1, 'cup');
+
+        $this->actingAs($this->user)->get(route('pantry'))
+            ->assertOk()
+            ->assertSee(route('recipes', ['ingredient' => $sourCream->id]), false);
+    }
+
+    /**
+     * Matched on the ingredient row rather than on its name, so the search
+     * lines up with what the pantry and the use-by windows are keyed on.
+     */
+    public function test_recipes_can_be_filtered_to_one_ingredient(): void
+    {
+        $usesIt = $this->recipeWith('Sour Cream Bake', ['Sour cream' => 0.25]);
+        $this->recipeWith('Plain Roast', ['Beef' => 0.5]);
+
+        $sourCream = Ingredient::where('name', 'Sour cream')->firstOrFail();
+
+        $this->actingAs($this->user)->get(route('recipes', ['ingredient' => $sourCream->id]))
+            ->assertOk()
+            ->assertSee('Recipes using')
+            ->assertSee($usesIt->name)
+            ->assertDontSee('Plain Roast');
+    }
+
+    /** Narrowing further must not drop the ingredient you came here for. */
+    public function test_the_ingredient_filter_survives_another_filter(): void
+    {
+        $sourCream = $this->ingredient('Sour cream', IngredientCategory::Dairy, 2);
+
+        $this->actingAs($this->user)->get(route('recipes', ['ingredient' => $sourCream->id]))
+            ->assertOk()
+            // Every protein chip carries the ingredient along.
+            ->assertSee('ingredient='.$sourCream->id, false);
+    }
+
+    /** Owning nothing that uses it is exactly when searching the web helps. */
+    public function test_an_ingredient_no_recipe_uses_offers_the_web_search(): void
+    {
+        $orphan = $this->ingredient('Tamarind paste', IngredientCategory::Condiment, 90);
+
+        $this->actingAs($this->user)->get(route('recipes', ['ingredient' => $orphan->id]))
+            ->assertOk()
+            ->assertSee('None of your recipes use Tamarind paste')
+            ->assertSee(route('discover', ['q' => 'Tamarind paste']), false);
+    }
+
+    /** A stale or hand-typed id must not blow the page up. */
+    public function test_an_unknown_ingredient_filter_is_ignored(): void
+    {
+        $this->recipeWith('Plain Roast', ['Beef' => 0.5]);
+
+        $this->actingAs($this->user)
+            ->get(route('recipes', ['ingredient' => '01a00000-0000-7000-8000-000000000000']))
+            ->assertOk()
+            ->assertSee('Plain Roast');
+    }
+
     public function test_the_pantry_tab_is_in_the_navigation(): void
     {
         $this->actingAs($this->user)->get(route('home'))

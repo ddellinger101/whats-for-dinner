@@ -13,7 +13,28 @@
 @endsection
 
 @section('content')
+    @php
+        // Carried through every filter link, so narrowing by protein does not
+        // silently drop the ingredient you came here to use up.
+        $keep = array_filter(['q' => $search ?: null, 'ingredient' => $ingredient?->id]);
+    @endphp
+
+    @if ($ingredient)
+        <div class="mb-3 flex items-center gap-3 rounded-2xl border border-leaf-500/50 bg-leaf-500/5 px-4 py-3">
+            <svg class="size-5 shrink-0 text-leaf-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+            </svg>
+            <p class="min-w-0 flex-1 text-sm text-ink-800">
+                Recipes using <span class="font-semibold">{{ $ingredient->name }}</span>
+            </p>
+            <a href="{{ route('recipes') }}"
+               class="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-ink-500 hover:text-red-600">Clear</a>
+        </div>
+    @endif
+
     <form method="GET" action="{{ route('recipes') }}">
+        @if ($ingredient) <input type="hidden" name="ingredient" value="{{ $ingredient->id }}"> @endif
         <input type="search" name="q" value="{{ $search }}" placeholder="Search recipes&hellip;"
                class="min-h-tap w-full rounded-xl border border-ink-200 bg-white px-4 text-base outline-none
                       focus:border-brand-500 focus:ring-2 focus:ring-brand-200">
@@ -21,13 +42,13 @@
         {{-- Filters keep the current search, so narrowing never loses it. --}}
         <div class="-mx-4 mt-3 overflow-x-auto px-4 pb-1">
             <div class="flex w-max gap-2">
-                <a href="{{ route('recipes', ['q' => $search ?: null]) }}"
+                <a href="{{ route('recipes', $keep) }}"
                    class="min-h-9 rounded-full border px-3.5 py-1.5 text-sm font-medium transition
                           {{ ! $protein && ! $tag ? 'border-brand-600 bg-brand-600 text-white' : 'border-ink-200 bg-white text-ink-600' }}">
                     All
                 </a>
                 @foreach ($proteins as $option)
-                    <a href="{{ route('recipes', ['protein' => $option->value, 'q' => $search ?: null]) }}"
+                    <a href="{{ route('recipes', $keep + ['protein' => $option->value]) }}"
                        class="min-h-9 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition
                               {{ $protein === $option->value ? 'border-brand-600 bg-brand-600 text-white' : 'border-ink-200 bg-white text-ink-600' }}">
                         {{ $option->label() }}
@@ -39,7 +60,7 @@
         <div class="-mx-4 mt-2 overflow-x-auto px-4 pb-1">
             <div class="flex w-max gap-2">
                 @foreach ($tags as $option)
-                    <a href="{{ route('recipes', ['tag' => $option->value, 'q' => $search ?: null]) }}"
+                    <a href="{{ route('recipes', $keep + ['tag' => $option->value]) }}"
                        class="min-h-9 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition
                               {{ $tag === $option->value ? 'border-leaf-600 bg-leaf-600 text-white' : 'border-ink-200 bg-white text-ink-600' }}">
                         {{ $option->label() }}
@@ -116,9 +137,22 @@
     </ul>
 
     @if ($recipes->isEmpty())
-        <p class="mt-2 rounded-xl border border-dashed border-ink-200 px-4 py-8 text-center text-sm text-ink-600">
-            Nothing matches those filters.
-        </p>
+        <div class="mt-2 rounded-xl border border-dashed border-ink-200 px-4 py-8 text-center">
+            @if ($ingredient)
+                {{-- Owning nothing that uses it is the moment the web search is
+                     actually the answer, so it is offered rather than described. --}}
+                <p class="text-sm text-ink-600">
+                    None of your recipes use {{ $ingredient->name }}.
+                </p>
+                <a href="{{ route('discover', ['q' => $ingredient->name]) }}"
+                   class="mt-3 inline-flex min-h-tap items-center rounded-xl bg-brand-600 px-5 font-semibold
+                          text-white shadow-sm transition hover:bg-brand-700">
+                    Find one online
+                </a>
+            @else
+                <p class="text-sm text-ink-600">Nothing matches those filters.</p>
+            @endif
+        </div>
     @endif
 
     <div class="mt-4">{{ $recipes->links() }}</div>

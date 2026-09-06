@@ -8,6 +8,7 @@ use App\Enums\ProteinType;
 use App\Enums\Rating;
 use App\Jobs\ImportRecipeDetails;
 use App\Models\HouseholdSetting;
+use App\Models\Ingredient;
 use App\Models\MealComponent;
 use App\Models\Recipe;
 use App\Services\InventoryService;
@@ -30,10 +31,21 @@ class RecipeController extends Controller
         $protein = $request->query('protein');
         $tag = $request->query('tag');
 
+        // Filtered by ingredient id rather than by name, so "what can I make
+        // with the sour cream that's going off?" matches the same row the
+        // pantry and the use-by windows are keyed on.
+        $ingredient = filled($request->query('ingredient'))
+            ? Ingredient::find($request->query('ingredient'))
+            : null;
+
         $recipes = Recipe::query()
             ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
             ->when($protein, fn ($q) => $q->where('protein_type', $protein))
             ->when($tag, fn ($q) => $q->whereJsonContains('category_tags', $tag))
+            ->when($ingredient, fn ($q) => $q->whereHas(
+                'ingredients',
+                fn ($sub) => $sub->whereKey($ingredient->id),
+            ))
             ->orderByDesc('times_made')
             ->orderBy('name')
             ->paginate(30)
@@ -44,6 +56,7 @@ class RecipeController extends Controller
             'search' => $search,
             'protein' => $protein,
             'tag' => $tag,
+            'ingredient' => $ingredient,
             'proteins' => ProteinType::cases(),
             'tags' => CategoryTag::cases(),
             'dietMode' => HouseholdSetting::current()->diet_mode,
