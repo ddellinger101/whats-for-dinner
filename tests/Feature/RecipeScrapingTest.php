@@ -69,6 +69,12 @@ class RecipeScrapingTest extends TestCase
                 null, null, 'Lemon juice',
             ],
             'bare measurement' => ['Teaspoon* salt', null, null, 'Salt'],
+            // Vaguer measures recipe writers reach for constantly. Taking one
+            // off exposes the "of" that followed it, which has to go too.
+            'scrunch of' => ['Scrunch of pepper', null, null, 'Pepper'],
+            'a grind of' => ['A grind of black pepper', null, null, 'Black pepper'],
+            'squeeze of' => ['Squeeze of lemon juice', null, null, 'Lemon juice'],
+            'sprinkle of' => ['Sprinkle of parmesan', null, null, 'Parmesan'],
             'substitution offered' => ['Low sodium soy sauce or tamari', null, null, 'Low sodium soy sauce'],
             // The alternation is on the adjective, so splitting would leave
             // "Brown" — a long correct name beats a short wrong one.

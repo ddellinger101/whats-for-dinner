@@ -65,6 +65,14 @@ class AisleGuesser
                 // counter, on the chicken.
                 'cream of', 'soup', 'condensed milk', 'evaporated milk',
             ]],
+            // Citrus juice comes off a fruit in this kitchen, not out of a
+            // carton, so it belongs with the lemons. Ahead of the drinks rule,
+            // which was claiming it on "juice" — orange and apple juice stay
+            // there, being the kind you pour into a glass.
+            [GroceryAisle::Produce, [
+                'lemon juice', 'lime juice', 'lemon zest', 'lime zest',
+                'orange zest', 'lemon wedge', 'lime wedge',
+            ]],
             [GroceryAisle::Drinks, [
                 'beer', 'wine', 'cider', 'soda', 'cola', 'juice', 'seltzer',
                 'sparkling water', 'coffee', 'tea', 'lemonade', 'kombucha',

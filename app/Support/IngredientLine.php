@@ -111,6 +111,11 @@ readonly class IngredientLine
     private const BARE_MEASURES = [
         'teaspoon', 'teaspoons', 'tablespoon', 'tablespoons', 'handful',
         'handfuls', 'pinch', 'dash', 'splash', 'each', 'to taste',
+        // The vaguer end of the same idea, which recipe writers reach for
+        // constantly: "scrunch of pepper" was becoming an ingredient in its
+        // own right rather than the pepper it plainly is.
+        'scrunch', 'grind', 'grinding', 'twist', 'crack', 'sprinkle',
+        'sprinkling', 'drizzle', 'glug', 'knob', 'squeeze', 'few',
     ];
 
     public static function parse(string $line): self
@@ -272,13 +277,24 @@ readonly class IngredientLine
             $text = $parts[0];
         }
 
-        $text = preg_replace('/^(of|a|an)\s+/', '', trim($text)) ?? $text;
+        $text = trim($text);
 
         // Measurement words with no number in front, left behind by lines like
         // "Teaspoon* salt" or "Handful each fresh thyme".
         $changed = true;
         while ($changed) {
             $changed = false;
+
+            // Re-checked every pass rather than once at the start, because
+            // taking a measure off exposes what followed it: "scrunch of
+            // pepper" loses the scrunch and is left standing on the "of".
+            $stripped = preg_replace('/^(?:of|a|an)\s+/u', '', $text) ?? $text;
+
+            if ($stripped !== $text) {
+                $text = $stripped;
+                $changed = true;
+            }
+
             foreach (self::BARE_MEASURES as $measure) {
                 $pattern = '/^'.preg_quote($measure, '/').'\*?\b\s*/u';
                 $stripped = preg_replace($pattern, '', $text) ?? $text;

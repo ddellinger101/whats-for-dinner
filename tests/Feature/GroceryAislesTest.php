@@ -192,6 +192,24 @@ class GroceryAislesTest extends TestCase
             ->assertSee('Bourbon');
     }
 
+    /**
+     * Citrus juice comes off a fruit in this kitchen rather than out of a
+     * carton, so it belongs with the lemons. The drinks rule was claiming it
+     * on "juice".
+     */
+    public function test_citrus_juice_is_produce_not_a_drink(): void
+    {
+        $guesser = new AisleGuesser;
+
+        foreach (['Lemon juice', 'Lime juice', 'Fresh lemon juice', 'Lemon zest'] as $item) {
+            $this->assertSame(GroceryAisle::Produce, $guesser->guess($item), $item);
+        }
+
+        // The kind you pour into a glass stays a drink.
+        $this->assertSame(GroceryAisle::Drinks, $guesser->guess('Orange juice'));
+        $this->assertSame(GroceryAisle::Drinks, $guesser->guess('Apple juice'));
+    }
+
     public function test_drinks_have_an_aisle_of_their_own(): void
     {
         $guesser = new AisleGuesser;
