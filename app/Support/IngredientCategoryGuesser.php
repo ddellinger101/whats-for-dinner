@@ -56,7 +56,15 @@ class IngredientCategoryGuesser
                 // unlisted oil would have done the same. Matched on a word
                 // boundary, so "shrimp boil" is untouched.
                 'oil', 'cooking spray',
-                'honey', 'maple syrup', 'peanut butter', 'jam', 'jelly', 'pesto',
+                'honey', 'peanut butter', 'jam', 'jelly', 'pesto',
+                // Any syrup, for the same reason as any oil: naming maple and
+                // leaving table, simple and corn syrup to fall through to
+                // produce is a list that only covers what someone thought of.
+                'syrup',
+                // A bottle of steak sauce is not steak. Condiments are checked
+                // before protein, so naming it here is enough.
+                'steak sauce', 'cocktail sauce', 'chili sauce', 'sweet and sour',
+                'tartar sauce', 'aioli', 'heinz 57', 'dressing',
             ]],
 
             // After condiments, so vinegar and cooking wine are already claimed.
@@ -86,6 +94,11 @@ class IngredientCategoryGuesser
                 'tomato sauce', 'salsa', 'coconut milk', 'olives', 'pickles',
                 'capers', 'enchilada sauce', 'marinara', 'refried', 'adobo',
                 'diced tomatoes', 'crushed tomatoes', 'tomato puree', 'green chiles',
+                // Things that live in a jar on the shelf rather than in the
+                // fruit bowl: cocktail cherries are not cherries, and pickled
+                // ginger is not ginger.
+                'pickled', 'maraschino', 'cocktail cherries', 'cocktail onions',
+                'artichoke hearts', 'roasted red peppers',
             ]],
 
             [IngredientCategory::Dairy, [

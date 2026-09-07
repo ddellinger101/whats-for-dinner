@@ -98,16 +98,24 @@ class GroceryAislesTest extends TestCase
         $this->assertSame(GroceryAisle::Meat, $guesser->guess('Chicken breast'));
     }
 
-    /** A bottle of fish sauce does not come from the fish counter. */
-    public function test_sauces_named_after_seafood_are_still_pantry(): void
+    /**
+     * A bottle of fish sauce does not come from the fish counter, a carton of
+     * chicken stock does not come from the butcher, and steak sauce is not
+     * steak. All three are named after the animal they go with.
+     */
+    public function test_things_named_after_meat_and_fish_are_still_pantry(): void
     {
         $guesser = new AisleGuesser;
 
-        $this->assertSame(GroceryAisle::Pantry, $guesser->guess('Fish sauce'));
-        $this->assertSame(GroceryAisle::Pantry, $guesser->guess('Oyster sauce'));
-        // The fish itself is unaffected.
-        $this->assertSame(GroceryAisle::Seafood, $guesser->guess('White fish fillet'));
-        $this->assertSame(GroceryAisle::Seafood, $guesser->guess('Oysters'));
+        foreach (['Fish sauce', 'Oyster sauce', 'Steak sauce', 'Chicken broth',
+            'Beef stock', 'Chicken bouillon', 'Turkey gravy'] as $item) {
+            $this->assertSame(GroceryAisle::Pantry, $guesser->guess($item), $item);
+        }
+
+        // The animals themselves are unaffected.
+        $this->assertSame(GroceryAisle::Seafood, $guesser->guess('Salmon fillet'));
+        $this->assertSame(GroceryAisle::Meat, $guesser->guess('Ribeye steak'));
+        $this->assertSame(GroceryAisle::Meat, $guesser->guess('Chicken breast'));
     }
 
     public function test_drinks_have_an_aisle_of_their_own(): void

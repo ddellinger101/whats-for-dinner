@@ -114,6 +114,31 @@ class RecipeScrapingTest extends TestCase
         $this->assertSame(IngredientCategory::Frozen, $guesser->guess('Frozen peas'));
     }
 
+    /**
+     * A shelf of sauces read off a photograph, most of which fell through to
+     * produce because the list named the particular condiments someone had
+     * thought of rather than the shapes they come in.
+     */
+    public function test_bottled_sauces_and_syrups_are_condiments(): void
+    {
+        $guesser = new IngredientCategoryGuesser;
+
+        foreach (['Steak sauce', 'Heinz 57 sauce', 'Cocktail sauce', 'Sweet and sour sauce',
+            'Sweet thai chili sauce', 'Italian dressing', 'Table syrup', 'Simple syrup'] as $item) {
+            $this->assertSame(IngredientCategory::Condiment, $guesser->guess($item), $item);
+        }
+
+        // Jarred rather than fresh: cocktail cherries are not cherries and
+        // pickled ginger is not ginger.
+        foreach (['Cocktail cherries', 'Cocktail onions', 'Pickled ginger'] as $item) {
+            $this->assertSame(IngredientCategory::JarredCanned, $guesser->guess($item), $item);
+        }
+
+        // The fresh things keep their own answer.
+        $this->assertSame(IngredientCategory::Produce, $guesser->guess('Ginger'));
+        $this->assertSame(IngredientCategory::Protein, $guesser->guess('Ribeye steak'));
+    }
+
     /** "Soda" was claiming baking soda and filing it with the beer. */
     public function test_baking_staples_are_dry_goods_not_drinks(): void
     {
