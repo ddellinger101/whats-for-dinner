@@ -60,6 +60,9 @@ class IngredientCategoryGuesser
                 'vinegar', 'cooking wine', 'rice wine', 'ketchup', 'mustard',
                 'mayo', 'mayonnaise', 'soy sauce', 'hot sauce',
                 'sriracha', 'tabasco', 'vinegar', 'worcestershire', 'bbq sauce', 'barbecue sauce',
+                // Chillies packed in oil, which the seasoning rule below was
+                // claiming on the word "pepper" and filing with the dry spices.
+                'calabrian', 'chili crisp', 'chili paste', 'harissa', 'gochujang',
                 'ranch', 'dressing', 'relish', 'horseradish', 'fish sauce',
                 // Any oil, not a list of them. Naming five meant grapeseed oil
                 // fell through to produce on the word "grape", and the next

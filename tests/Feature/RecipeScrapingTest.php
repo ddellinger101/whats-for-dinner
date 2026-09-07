@@ -159,6 +159,25 @@ class RecipeScrapingTest extends TestCase
         $this->assertNotSame(IngredientCategory::Dairy, $guesser->guess('Cheesecake'));
     }
 
+    /**
+     * A jar of chillies in oil is not a dry spice. The seasoning rule that
+     * keeps black pepper out of the vegetable aisle was claiming these on the
+     * word "pepper".
+     */
+    public function test_chillies_in_a_jar_are_not_dry_spices(): void
+    {
+        $guesser = new IngredientCategoryGuesser;
+
+        foreach (['Calabrian chili peppers', 'Chili crisp', 'Harissa', 'Gochujang'] as $item) {
+            $this->assertSame(IngredientCategory::Condiment, $guesser->guess($item), $item);
+        }
+
+        // The dry ones are untouched, which is what that rule is for.
+        $this->assertSame(IngredientCategory::PantryDry, $guesser->guess('Black pepper'));
+        $this->assertSame(IngredientCategory::PantryDry, $guesser->guess('Red pepper flakes'));
+        $this->assertSame(IngredientCategory::Produce, $guesser->guess('Red bell pepper'));
+    }
+
     /** "Soda" was claiming baking soda and filing it with the beer. */
     public function test_baking_staples_are_dry_goods_not_drinks(): void
     {
