@@ -81,6 +81,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/pantry/{flag}', [PantryController::class, 'update'])->name('pantry.update');
     Route::post('/pantry/{flag}/gone', [PantryController::class, 'markGone'])->name('pantry.gone');
     Route::post('/pantry/{flag}/restock', [PantryController::class, 'restock'])->name('pantry.restock');
+    Route::post('/pantry/{flag}/grocery', [PantryController::class, 'addToGrocery'])->name('pantry.grocery');
 
     Route::get('/grocery', [GroceryController::class, 'index'])->name('grocery');
     Route::post('/grocery', [GroceryController::class, 'store'])->name('grocery.store');

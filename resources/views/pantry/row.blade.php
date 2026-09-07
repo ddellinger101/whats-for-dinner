@@ -26,6 +26,29 @@
             </p>
         </div>
 
+        {{-- Only on the rows that are going off. Something running out is
+             often something bought every week, and the moment you notice is
+             the moment to put it on the list — not a prompt to go and find
+             the list. Every other row keeps this in the menu, where it costs
+             the name no width. --}}
+        @if ($urgent)
+            <form method="POST" action="{{ route('pantry.grocery', $flag) }}" class="shrink-0">
+                @csrf
+                <button type="submit"
+                        class="grid size-tap place-items-center rounded-lg text-leaf-600 transition
+                               hover:bg-leaf-500/10"
+                        aria-label="Add {{ $flag->ingredient->name }} to the grocery list"
+                        title="Add to the grocery list">
+                    <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M2 3h2l2.5 11h10L20 6H6"/>
+                        <circle cx="9" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/>
+                        <path d="M14 3v5M11.5 5.5h5"/>
+                    </svg>
+                </button>
+            </form>
+        @endif
+
         {{-- The point of knowing what is going off is doing something about it,
              so the way to act on it sits next to the item rather than being
              left as an exercise. --}}
@@ -73,6 +96,18 @@
                             class="min-h-9 w-full rounded-lg bg-brand-600 px-3 text-sm font-semibold text-white
                                    transition hover:bg-brand-700">Save</button>
                 </form>
+
+                @unless ($urgent)
+                    {{-- The urgent rows have this as an icon of its own. --}}
+                    <form method="POST" action="{{ route('pantry.grocery', $flag) }}" class="mt-2">
+                        @csrf
+                        <button type="submit"
+                                class="min-h-9 w-full rounded-lg border border-ink-200 px-3 text-sm font-medium
+                                       text-ink-700 transition hover:border-brand-400 hover:text-brand-600">
+                            Add to grocery list
+                        </button>
+                    </form>
+                @endunless
 
                 <form method="POST" action="{{ route('pantry.gone', $flag) }}" class="mt-2">
                     @csrf

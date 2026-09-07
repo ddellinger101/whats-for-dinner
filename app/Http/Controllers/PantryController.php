@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\IngredientCategory;
 use App\Models\Ingredient;
 use App\Models\InventoryFlag;
+use App\Services\GroceryListBuilder;
 use App\Services\IngredientResolver;
 use App\Services\InventoryService;
 use Illuminate\Http\RedirectResponse;
@@ -126,6 +127,28 @@ class PantryController extends Controller
         $this->inventory->markGone($flag);
 
         return back()->with('status', "{$name} marked as gone.");
+    }
+
+    /**
+     * Straight onto the grocery list from the pantry.
+     *
+     * Offered on the use-these-up rows especially: something going off is
+     * often something bought every week, and noticing that is the moment to
+     * put it on the list rather than a prompt to go and find the list.
+     */
+    public function addToGrocery(InventoryFlag $flag, GroceryListBuilder $grocery): RedirectResponse
+    {
+        $ingredient = $flag->ingredient;
+
+        if (! $ingredient) {
+            return back()->withErrors(['flag' => 'That ingredient no longer exists.']);
+        }
+
+        $item = $grocery->addForIngredient($ingredient);
+
+        return back()->with('status', $item->wasRecentlyCreated
+            ? "{$ingredient->name} added to the grocery list."
+            : "{$ingredient->name} was already on the grocery list.");
     }
 
     /**

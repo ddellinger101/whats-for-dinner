@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\GroceryAisle;
 use App\Enums\IngredientCategory;
 use App\Enums\IngredientsStatus;
 use App\Enums\MealSlot;
@@ -419,8 +420,10 @@ class PantryTest extends TestCase
      */
     public function test_a_pantry_row_carries_only_two_tap_targets(): void
     {
+        // Long shelf life, so it is not one of the use-these-up rows, which
+        // carry a third icon of their own.
         $flag = $this->inventory->add(
-            $this->ingredient('Boneless skinless chicken breasts', IngredientCategory::Protein, 3),
+            $this->ingredient('Boneless skinless chicken breasts', IngredientCategory::PantryDry, 300),
             2,
             'lb',
         );
@@ -433,6 +436,58 @@ class PantryTest extends TestCase
         // Marking it gone is still one menu away, not gone itself.
         $this->assertStringContainsString(route('pantry.gone', $flag), $row);
         $this->assertStringContainsString('It&rsquo;s gone', $row);
+    }
+
+    /**
+     * Something running out is often something bought every week, so the row
+     * that tells you it is going off is where the list should be one tap away.
+     */
+    public function test_a_use_it_up_row_offers_a_quick_add_to_the_grocery_list(): void
+    {
+        $sourCream = $this->ingredient('Sour cream', IngredientCategory::Dairy, 2);
+        $flag = $this->inventory->add($sourCream, 1, 'cup');
+
+        $this->actingAs($this->user)->get(route('pantry'))
+            ->assertOk()
+            ->assertSee(route('pantry.grocery', $flag), false);
+
+        $this->actingAs($this->user)
+            ->post(route('pantry.grocery', $flag))
+            ->assertRedirect();
+
+        $line = GroceryListItem::needed()->firstOrFail();
+        $this->assertSame('Sour cream', $line->item_name);
+        // Linked to the ingredient, so buying it restocks this same pantry row.
+        $this->assertSame($sourCream->id, $line->ingredient_id);
+        $this->assertSame(GroceryAisle::Dairy, $line->aisle);
+    }
+
+    /** Tapping twice must not make two lines. */
+    public function test_adding_something_already_on_the_list_does_not_duplicate_it(): void
+    {
+        $flag = $this->inventory->add($this->ingredient('Sour cream', IngredientCategory::Dairy, 2), 1, 'cup');
+
+        $this->actingAs($this->user)->post(route('pantry.grocery', $flag));
+        $this->actingAs($this->user)->post(route('pantry.grocery', $flag))
+            ->assertSessionHas('status', fn (string $s) => str_contains($s, 'already on the grocery list'));
+
+        $this->assertSame(1, GroceryListItem::needed()->count());
+    }
+
+    /**
+     * Every other row keeps it in the edit menu, where it costs the item name
+     * no width.
+     */
+    public function test_a_long_lived_row_keeps_the_grocery_action_in_its_menu(): void
+    {
+        $flag = $this->inventory->add($this->ingredient('Rice', IngredientCategory::PantryDry, 300), 2, 'cup');
+
+        $html = $this->actingAs($this->user)->get(route('pantry'))->assertOk()->getContent();
+        $row = Str::between($html, '<li class="px-3 py-2">', '</li>');
+
+        $this->assertStringContainsString('Add to grocery list', $row);
+        $this->assertStringContainsString(route('pantry.grocery', $flag), $row);
+        $this->assertSame(2, substr_count($row, 'size-tap'), 'still two icons on the row itself');
     }
 
     /** Knowing something is going off is only useful if you can act on it. */

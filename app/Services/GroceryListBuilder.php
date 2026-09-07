@@ -283,6 +283,36 @@ class GroceryListBuilder
     }
 
     /**
+     * Put something on the list straight from the pantry.
+     *
+     * Matched on the ingredient rather than on a unit, because this is not a
+     * meal asking for an amount — it is someone saying they want more of a
+     * thing. Anything already on the list is returned as it stands, so tapping
+     * twice does not make two lines; the caller can tell which happened from
+     * wasRecentlyCreated.
+     */
+    public function addForIngredient(Ingredient $ingredient, ?Carbon $addedOn = null): GroceryListItem
+    {
+        $existing = GroceryListItem::query()
+            ->needed()
+            ->where('ingredient_id', $ingredient->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        return GroceryListItem::create([
+            'item_name' => $ingredient->name,
+            'aisle' => $this->aisles->guess($ingredient->name, $ingredient),
+            'source' => GroceryItemSource::Manual,
+            'status' => GroceryItemStatus::Needed,
+            'added_date' => $addedOn ?? Carbon::today(),
+            'ingredient_id' => $ingredient->id,
+        ]);
+    }
+
+    /**
      * Surface repeaters that have come due, independent of the meal plan.
      *
      * Skips any repeater already sitting unpurchased on the list, so a weekly
