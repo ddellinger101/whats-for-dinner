@@ -7,6 +7,7 @@ use App\Models\Ingredient;
 use App\Support\IngredientCategoryGuesser;
 use App\Support\PantryStaple;
 use App\Support\PantryStaples;
+use App\Support\SpiritName;
 use Illuminate\Support\Str;
 
 /**
@@ -43,6 +44,10 @@ class IngredientResolver
                 ->whereRaw('LOWER(name) = ?', [mb_strtolower($staple->name)])
                 ->first();
         }
+
+        // Same reduction resolve() makes, so a caller asking whether a name is
+        // known gets the answer resolve() would act on.
+        $name = SpiritName::generic($name) ?? $name;
 
         // One recipe writes "1 onion", the next writes "2 onions". Match every
         // form and keep whichever spelling arrived first. Storing a forced
@@ -85,6 +90,16 @@ class IngredientResolver
          */
         if ($staple = PantryStaples::match($name)) {
             return $this->resolveStaple($staple);
+        }
+
+        /*
+         * Cocktail recipes name the bottle the author owned. Left alone, every
+         * one becomes its own ingredient, and a bar holding one bottle of
+         * bourbon matches none of the three recipes that call for bourbon
+         * under three different brands.
+         */
+        if ($generic = SpiritName::generic($name)) {
+            $name = $generic;
         }
 
         if ($existing = $this->find($name)) {

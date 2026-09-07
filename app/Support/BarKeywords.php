@@ -33,7 +33,8 @@ class BarKeywords
             'jagermeister', 'fireball', 'aperitif', 'vermouth',
 
             // Mixers and garnishes
-            'bitters', 'grenadine', 'simple syrup', 'tonic water', 'club soda',
+            'bitters', 'grenadine', 'simple syrup', 'demerara syrup',
+            'rich syrup', 'orgeat', 'agave nectar', 'tonic water', 'club soda',
             'sweet and sour mix', 'margarita mix', 'cocktail cherries',
             'cocktail onions', 'cocktail garnish', 'maraschino',
         ];
