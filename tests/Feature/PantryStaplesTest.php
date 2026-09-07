@@ -327,6 +327,23 @@ class PantryStaplesTest extends TestCase
         );
     }
 
+    /**
+     * Not only staples. A shelf of sauces was put in without dates on purpose,
+     * and recomputing from shelf life would hand ketchup a use-by window.
+     */
+    public function test_a_deliberately_undated_pantry_row_is_left_undated(): void
+    {
+        $this->artisan('pantry:add "Table syrup" --apply --no-expiry')->assertSuccessful();
+
+        $flag = InventoryFlag::whereHas('ingredient', fn ($q) => $q->where('name', 'Table syrup'))
+            ->firstOrFail();
+        $this->assertNull($flag->expires_on);
+
+        $this->artisan('ingredients:recategorise --apply --refresh-dates')->assertSuccessful();
+
+        $this->assertNull($flag->fresh()->expires_on);
+    }
+
     public function test_the_pantry_page_lists_the_rack_separately(): void
     {
         $this->artisan('pantry:staples')->assertSuccessful();

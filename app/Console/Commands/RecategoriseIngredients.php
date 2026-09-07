@@ -103,6 +103,11 @@ class RecategoriseIngredients extends Command
             $refreshed += InventoryFlag::query()
                 ->where('ingredient_id', $ingredient->id)
                 ->whereNotNull('acquired_on')
+                // A row with no use-by date has none to recompute. Empty is a
+                // decision here — the spice rack and the shelf of sauces were
+                // put in that way on purpose — and inventing one would put a
+                // bottle of ketchup in the use-these-up list.
+                ->whereNotNull('expires_on')
                 ->get()
                 ->each(fn (InventoryFlag $flag) => $flag->update([
                     // Staples do not expire, here as in refreshAllDates().
@@ -132,6 +137,9 @@ class RecategoriseIngredients extends Command
         $flags = InventoryFlag::query()
             ->with('ingredient')
             ->whereNotNull('acquired_on')
+            // See the note on the per-change refresh: no date is a decision,
+            // not a gap waiting to be filled.
+            ->whereNotNull('expires_on')
             ->get()
             ->filter(fn (InventoryFlag $flag) => $flag->ingredient !== null);
 
