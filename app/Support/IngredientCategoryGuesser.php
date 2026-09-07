@@ -59,7 +59,7 @@ class IngredientCategoryGuesser
             [IngredientCategory::Condiment, [
                 'vinegar', 'cooking wine', 'rice wine', 'ketchup', 'mustard',
                 'mayo', 'mayonnaise', 'soy sauce', 'hot sauce',
-                'sriracha', 'vinegar', 'worcestershire', 'bbq sauce', 'barbecue sauce',
+                'sriracha', 'tabasco', 'vinegar', 'worcestershire', 'bbq sauce', 'barbecue sauce',
                 'ranch', 'dressing', 'relish', 'horseradish', 'fish sauce',
                 // Any oil, not a list of them. Naming five meant grapeseed oil
                 // fell through to produce on the word "grape", and the next
