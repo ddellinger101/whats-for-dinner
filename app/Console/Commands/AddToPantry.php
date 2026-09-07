@@ -89,7 +89,20 @@ class AddToPantry extends Command
                 default => $created++,
             };
 
-            if (! $apply || $inPantry || ! $ingredient) {
+            if (! $apply || ! $ingredient) {
+                continue;
+            }
+
+            // Already here, so its amount and history are left alone — but a
+            // date given on the command line is a statement about the thing
+            // itself, and skipping the row entirely left half a shelf of
+            // vinegar with a use-by date and half without.
+            if ($inPantry) {
+                if ($noExpiry || $expires !== null) {
+                    InventoryFlag::where('ingredient_id', $ingredient->id)
+                        ->update(['expires_on' => $expires]);
+                }
+
                 continue;
             }
 

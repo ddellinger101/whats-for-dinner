@@ -339,6 +339,24 @@ class PantryStaplesTest extends TestCase
         $this->assertSame('2026-09-01', $flag->expires_on->toDateString());
     }
 
+    /**
+     * Half a shelf of vinegar came out dated and half undated, because the
+     * bottles already in the pantry were skipped whole rather than having the
+     * stated date applied.
+     */
+    public function test_a_date_given_reaches_rows_already_in_the_pantry(): void
+    {
+        $this->artisan('pantry:add "Olive oil" --apply')->assertSuccessful();
+
+        $flag = InventoryFlag::whereHas('ingredient', fn ($q) => $q->where('name', 'Olive oil'))
+            ->firstOrFail();
+        $this->assertNotNull($flag->expires_on, 'the shelf life applies on the way in');
+
+        $this->artisan('pantry:add "Olive oil" --apply --no-expiry')->assertSuccessful();
+
+        $this->assertNull($flag->fresh()->expires_on);
+    }
+
     public function test_an_unreadable_date_is_refused_before_anything_is_written(): void
     {
         $this->artisan('pantry:add "White american cheese" --apply --expires=09.01.26')
