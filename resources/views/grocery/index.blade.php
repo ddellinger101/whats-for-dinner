@@ -176,23 +176,50 @@
                                     </div>
                                 </details>
 
-                                <span class="min-w-0 flex-1 truncate">
-                                    @if ($item->isOverBought())
-                                        {{-- Named so the extra reads as a deliberate
-                                             buy rather than a mistake. --}}
-                                        <span class="text-leaf-600">
-                                            {{ rtrim(rtrim(number_format((float) $item->planned_quantity, 2), '0'), '.') }} for this week,
-                                            rest to the pantry
+                                {{-- Truncated to keep the row one line, but
+                                     expandable in place: "for Chicken Piccata
+                                     and Chicken C…" tells you less than the
+                                     space it takes. Opening lets it wrap
+                                     rather than sending you elsewhere.
+
+                                     The toggle is removed by the script below
+                                     on any line that fits anyway, so most rows
+                                     carry no plus sign at all. --}}
+                                <details class="group min-w-0 flex-1" data-reason>
+                                    <summary class="flex list-none items-baseline gap-1">
+                                        <span class="min-w-0 truncate group-open:whitespace-normal">
+                                            @if ($item->isOverBought())
+                                                {{-- Named so the extra reads as a
+                                                     deliberate buy rather than a
+                                                     mistake. --}}
+                                                <span class="text-leaf-600">
+                                                    {{ rtrim(rtrim(number_format((float) $item->planned_quantity, 2), '0'), '.') }} for this week,
+                                                    rest to the pantry
+                                                </span>
+                                            @elseif ($reason = $item->reasonLabel())
+                                                {{-- One line can be buying for
+                                                     several meals, so it says how
+                                                     many rather than naming only
+                                                     the first. --}}
+                                                {{ $reason }}
+                                            @else
+                                                {{ $item->source->label() }}
+                                            @endif
                                         </span>
-                                    @elseif ($reason = $item->reasonLabel())
-                                        {{-- One line can be buying for several
-                                             meals, so it says how many rather
-                                             than naming only the first. --}}
-                                        {{ $reason }}
-                                    @else
-                                        {{ $item->source->label() }}
-                                    @endif
-                                </span>
+                                        {{-- Shown by default and hidden by the
+                                             script for lines that fit, rather
+                                             than the other way round: if the
+                                             script never runs, every line can
+                                             still be opened. --}}
+                                        <span data-reason-toggle
+                                              class="shrink-0 cursor-pointer select-none px-1 font-semibold
+                                                     leading-none text-ink-300 transition hover:text-brand-600"
+                                              aria-hidden="true">
+                                            <span class="group-open:hidden">+</span>
+                                            <span class="hidden group-open:inline">&minus;</span>
+                                        </span>
+                                    </summary>
+                                </details>
                             </div>
                         </div>
 
@@ -354,6 +381,36 @@
             close();
         }
     });
+})();
+
+// Only offer to expand a detail line that is actually cut off. Most of them
+// fit, and a plus sign on every row would be noise on the screen this was
+// meant to declutter.
+(() => {
+    const fits = (details) => {
+        const text = details.querySelector('summary > span');
+        return text ? text.scrollWidth <= text.clientWidth + 1 : true;
+    };
+
+    const sync = () => {
+        for (const details of document.querySelectorAll('[data-reason]')) {
+            const toggle = details.querySelector('[data-reason-toggle]');
+            if (!toggle) continue;
+
+            // Measured closed: an open one has wrapped and no longer overflows,
+            // which would read as "fits" and remove its own way back.
+            const overflowing = details.open || !fits(details);
+
+            toggle.classList.toggle('hidden', !overflowing);
+            // Nothing to reveal, so the summary should not look clickable.
+            details.querySelector('summary').style.cursor = overflowing ? 'pointer' : 'default';
+            if (!overflowing) details.open = false;
+        }
+    };
+
+    sync();
+    // Rotating the phone changes what fits.
+    window.addEventListener('resize', sync);
 })();
 </script>
 @endpush

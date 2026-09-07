@@ -296,6 +296,35 @@ class GroceryAislesTest extends TestCase
         $this->assertStringContainsString(route('grocery.quantity', $item), $row);
     }
 
+    /**
+     * "for Chicken Piccata and Chicken C…" tells you less than the space it
+     * takes, so the detail line can be opened where it stands.
+     */
+    public function test_a_cut_off_detail_line_can_be_expanded(): void
+    {
+        $recipes = ['Chicken Piccata', 'Chicken Caesar Salad'];
+
+        foreach ($recipes as $index => $name) {
+            $recipe = $this->recipeWith($name, ['Chicken breasts' => IngredientCategory::Protein]);
+            (new MealPlanner)->setPrimaryRecipe(
+                Carbon::parse(self::WEDNESDAY)->addDays($index),
+                MealSlot::Dinner,
+                $recipe,
+            );
+        }
+
+        $html = $this->actingAs($this->user)->get(route('grocery'))->assertOk()->getContent();
+        $row = Str::between($html, '<li class="flex items-center', '</li>');
+
+        // The whole label is in the markup; the truncation is presentational,
+        // so opening it needs no round trip.
+        $this->assertStringContainsString('for Chicken Piccata and Chicken Caesar Salad', $row);
+        $this->assertStringContainsString('data-reason', $row);
+        $this->assertStringContainsString('data-reason-toggle', $row);
+        // Wraps once open rather than staying on one clipped line.
+        $this->assertStringContainsString('group-open:whitespace-normal', $row);
+    }
+
     public function test_the_aisle_menu_is_not_inside_a_clipping_container(): void
     {
         (new GroceryListBuilder)->addManual('Bananas');
