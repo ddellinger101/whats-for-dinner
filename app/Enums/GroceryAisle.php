@@ -23,6 +23,9 @@ enum GroceryAisle: string
     // list with nowhere to go, and Other is meant to be a prompt rather than a
     // permanent home.
     case Drinks = 'drinks';
+    // Spirits and mixers are their own trip in most shops, and often their own
+    // shop entirely.
+    case Bar = 'bar';
     case ReadyToEat = 'ready_to_eat';
     case Other = 'other';
 
@@ -51,6 +54,7 @@ enum GroceryAisle: string
             self::Frozen,
             self::Pantry,
             self::Drinks,
+            self::Bar,
             self::ReadyToEat,
             self::Other,
         ];

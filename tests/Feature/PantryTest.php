@@ -535,6 +535,28 @@ class PantryTest extends TestCase
         $this->assertSame('Rice', GroceryListItem::needed()->firstOrFail()->item_name);
     }
 
+    /**
+     * A section of its own, and never in the use-these-up list: a bottle of gin
+     * outlasts any planning horizon.
+     */
+    public function test_the_bar_is_its_own_pantry_section_and_does_not_expire(): void
+    {
+        $gin = $this->ingredient('Gin', IngredientCategory::Bar, 365);
+        $this->inventory->add($gin, 1, 'bottle');
+
+        $this->assertFalse($gin->isPerishable());
+
+        $response = $this->actingAs($this->user)->get(route('pantry'))->assertOk();
+
+        $this->assertContains('bar', $response->viewData('byCategory')->keys()->all());
+        $response->assertSee('Bar')->assertSee('Gin');
+
+        $this->assertNotContains(
+            $gin->id,
+            $this->inventory->atRiskIngredientIds(Carbon::today())->all(),
+        );
+    }
+
     /** Knowing something is going off is only useful if you can act on it. */
     public function test_each_pantry_item_offers_a_recipe_search(): void
     {

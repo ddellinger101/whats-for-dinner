@@ -124,15 +124,18 @@ class RecipeScrapingTest extends TestCase
         $guesser = new IngredientCategoryGuesser;
 
         foreach (['Steak sauce', 'Heinz 57 sauce', 'Cocktail sauce', 'Sweet and sour sauce',
-            'Sweet thai chili sauce', 'Italian dressing', 'Table syrup', 'Simple syrup'] as $item) {
+            // Simple syrup is not here: it went to the bar with the bitters.
+            'Sweet thai chili sauce', 'Italian dressing', 'Table syrup'] as $item) {
             $this->assertSame(IngredientCategory::Condiment, $guesser->guess($item), $item);
         }
 
-        // Jarred rather than fresh: cocktail cherries are not cherries and
-        // pickled ginger is not ginger.
-        foreach (['Cocktail cherries', 'Cocktail onions', 'Pickled ginger'] as $item) {
-            $this->assertSame(IngredientCategory::JarredCanned, $guesser->guess($item), $item);
-        }
+        // Jarred rather than fresh: pickled ginger is not ginger.
+        $this->assertSame(IngredientCategory::JarredCanned, $guesser->guess('Pickled ginger'));
+
+        // The cherries and the onions are jarred too, but they are garnishes,
+        // so the bar claims them first.
+        $this->assertSame(IngredientCategory::Bar, $guesser->guess('Cocktail cherries'));
+        $this->assertSame(IngredientCategory::Bar, $guesser->guess('Cocktail onions'));
 
         // The fresh things keep their own answer.
         $this->assertSame(IngredientCategory::Produce, $guesser->guess('Ginger'));
@@ -197,8 +200,10 @@ class RecipeScrapingTest extends TestCase
         $this->assertSame(IngredientCategory::PantryDry, $guesser->guess('Baking soda'));
         $this->assertSame(IngredientCategory::PantryDry, $guesser->guess('Baking powder'));
 
-        // While an actual drink still is one.
-        $this->assertSame(IngredientCategory::Beverage, $guesser->guess('Club soda'));
+        // While an actual drink still is one. Club soda is not the example any
+        // more — it is a mixer, and lives on the bar.
+        $this->assertSame(IngredientCategory::Beverage, $guesser->guess('Orange soda'));
+        $this->assertSame(IngredientCategory::Bar, $guesser->guess('Club soda'));
     }
 
     /**

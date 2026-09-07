@@ -17,6 +17,10 @@ enum IngredientCategory: string
     // urging someone to drink it before it went off.
     case Bakery = 'bakery';
     case Beverage = 'beverage';
+    // Spirits, mixers, bitters and garnishes. Separate from drinks because
+    // nothing here is drunk as it comes, and separate from the pantry because
+    // it is a different cupboard and a different shopping trip.
+    case Bar = 'bar';
 
     public function label(): string
     {
@@ -30,6 +34,7 @@ enum IngredientCategory: string
             self::Condiment => 'Condiments',
             self::Bakery => 'Bakery',
             self::Beverage => 'Drinks',
+            self::Bar => 'Bar',
         };
     }
 
@@ -49,6 +54,8 @@ enum IngredientCategory: string
             self::Condiment => 90,
             self::Bakery => 7,
             self::Beverage => 180,
+            // A bottle of gin outlasts any planning horizon.
+            self::Bar => 365,
         };
     }
 
@@ -61,6 +68,6 @@ enum IngredientCategory: string
      */
     public function isPerishable(): bool
     {
-        return ! in_array($this, [self::PantryDry, self::Beverage], true);
+        return ! in_array($this, [self::PantryDry, self::Beverage, self::Bar], true);
     }
 }

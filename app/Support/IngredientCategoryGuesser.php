@@ -48,6 +48,24 @@ class IngredientCategoryGuesser
                 'swerve', 'allulose', 'xylitol', 'cocoa',
             ]],
 
+            /*
+             * The bar before anything else, because almost everything on it is
+             * claimed by a later rule: simple syrup by "syrup", club soda and
+             * tonic by the drinks list, cocktail cherries by the jar rule.
+             *
+             * "Cocktail" on its own is deliberately absent — cocktail sauce is
+             * a condiment for prawns and has no business here — and so is
+             * "sherry", which would take the sherry vinegar with it.
+             */
+            [IngredientCategory::Bar, [
+                'bitters', 'vermouth', 'triple sec', 'cointreau', 'campari',
+                'aperol', 'amaro', 'grenadine', 'simple syrup', 'tonic water',
+                'club soda', 'cocktail cherries', 'cocktail onions',
+                'cocktail garnish', 'maraschino', 'liqueur', 'schnapps',
+                'bourbon', 'whiskey', 'whisky', 'vodka', 'gin', 'tequila',
+                'rum', 'mezcal', 'brandy', 'cognac', 'aperitif',
+            ]],
+
             // Cheese before condiments, because cheese is named after whatever
             // it was flavoured with: horseradish cheddar was filed as a
             // condiment on the horseradish, and garlic herb cheese would have
@@ -92,7 +110,8 @@ class IngredientCategoryGuesser
             [IngredientCategory::Beverage, [
                 'beer', 'wine', 'cider', 'soda', 'cola', 'seltzer', 'sparkling water',
                 'coffee', 'tea', 'lemonade', 'kombucha', 'ale', 'lager', 'ipa',
-                'bourbon', 'whiskey', 'whisky', 'vodka', 'gin', 'tequila', 'rum',
+                // The spirits moved to the bar rule above; what is left here is
+                // what you would pour and drink as it comes.
                 'champagne', 'prosecco', 'pilsner', 'stout', 'yuengling', 'la croix',
                 'orange juice', 'apple juice', 'fruit juice', 'juice box',
             ]],

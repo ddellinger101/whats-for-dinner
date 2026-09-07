@@ -49,6 +49,17 @@ class AisleGuesser
             // puts condiments there: these are things you cook with, not
             // things you pour. Without it "red wine vinegar" is filed by the
             // wine and "baking soda" by the soda.
+            // The bar before the pantry and the drinks, for the same reason the
+            // category guesser puts it first: simple syrup would otherwise be
+            // filed by "syrup" and club soda by "soda".
+            [GroceryAisle::Bar, [
+                'bitters', 'vermouth', 'triple sec', 'cointreau', 'campari',
+                'aperol', 'amaro', 'grenadine', 'simple syrup', 'tonic water',
+                'club soda', 'cocktail cherries', 'cocktail onions',
+                'cocktail garnish', 'maraschino', 'liqueur', 'schnapps',
+                'bourbon', 'whiskey', 'whisky', 'vodka', 'gin', 'tequila',
+                'rum', 'mezcal', 'brandy', 'cognac', 'aperitif',
+            ]],
             [GroceryAisle::Pantry, [
                 'oil', 'vinegar', 'cooking wine', 'rice wine', 'baking soda',
                 'baking powder', 'extract',
@@ -61,8 +72,8 @@ class AisleGuesser
             [GroceryAisle::Drinks, [
                 'beer', 'wine', 'cider', 'soda', 'cola', 'juice', 'seltzer',
                 'sparkling water', 'coffee', 'tea', 'lemonade', 'kombucha',
-                'ale', 'lager', 'ipa', 'bourbon', 'whiskey', 'vodka', 'gin',
-                'tequila', 'rum', 'champagne', 'prosecco',
+                // The spirits are on the bar rule above.
+                'ale', 'lager', 'ipa', 'champagne', 'prosecco',
             ]],
             [GroceryAisle::Seafood, [
                 'shrimp', 'prawn', 'salmon', 'tuna', 'cod', 'tilapia', 'halibut',
@@ -100,6 +111,7 @@ class AisleGuesser
             IngredientCategory::Frozen => GroceryAisle::Frozen,
             IngredientCategory::Bakery => GroceryAisle::Bakery,
             IngredientCategory::Beverage => GroceryAisle::Drinks,
+            IngredientCategory::Bar => GroceryAisle::Bar,
             IngredientCategory::PantryDry,
             IngredientCategory::JarredCanned,
             IngredientCategory::Condiment => GroceryAisle::Pantry,

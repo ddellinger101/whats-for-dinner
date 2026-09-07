@@ -118,6 +118,39 @@ class GroceryAislesTest extends TestCase
         $this->assertSame(GroceryAisle::Meat, $guesser->guess('Chicken breast'));
     }
 
+    /**
+     * The bar is its own trip, and almost everything on it is claimed by a
+     * later rule: simple syrup by "syrup", club soda by "soda", the cherries
+     * by the jar rule.
+     */
+    public function test_the_bar_has_an_aisle_of_its_own(): void
+    {
+        $guesser = new AisleGuesser;
+
+        foreach (['Gin', 'Bourbon', 'Sweet vermouth', 'Angostura bitters', 'Simple syrup',
+            'Cocktail cherries', 'Cocktail onions', 'Tonic water', 'Club soda', 'Triple sec'] as $item) {
+            $this->assertSame(GroceryAisle::Bar, $guesser->guess($item), $item);
+        }
+
+        // Cocktail sauce is for prawns, and beer is still a drink.
+        $this->assertSame(GroceryAisle::Pantry, $guesser->guess('Cocktail sauce'));
+        $this->assertSame(GroceryAisle::Pantry, $guesser->guess('Sherry vinegar'));
+        $this->assertSame(GroceryAisle::Drinks, $guesser->guess('Beer'));
+        $this->assertSame(GroceryAisle::Drinks, $guesser->guess('Red wine'));
+    }
+
+    /** It has to reach the list, not just the guesser. */
+    public function test_the_bar_gets_its_own_section_on_the_list(): void
+    {
+        (new GroceryListBuilder)->addManual('Bourbon');
+        (new GroceryListBuilder)->addManual('Bananas');
+
+        $this->actingAs($this->user)->get(route('grocery'))
+            ->assertOk()
+            ->assertSee('Bar')
+            ->assertSee('Bourbon');
+    }
+
     public function test_drinks_have_an_aisle_of_their_own(): void
     {
         $guesser = new AisleGuesser;

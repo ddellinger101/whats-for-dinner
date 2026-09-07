@@ -86,6 +86,17 @@ class RecipeTagGuesser
                 'lunch', 'sandwich', 'panini', 'grilled cheese', 'blt', 'hoagie',
                 'sub sandwich', 'club sandwich', 'bento', 'pita pocket',
             ],
+            // Drinks rather than dishes, so it names the drinks. "Cocktail"
+            // on its own claims shrimp cocktail, cocktail sauce and cocktail
+            // meatballs, none of which anyone drinks; "sour" would claim sour
+            // cream; "punch" turns up in too many titles to mean anything.
+            CategoryTag::Cocktail->value => [
+                'martini', 'margarita', 'mojito', 'negroni', 'daiquiri',
+                'old fashioned', 'manhattan', 'moscow mule', 'spritz', 'highball',
+                'julep', 'gimlet', 'cosmopolitan', 'bloody mary', 'mimosa',
+                'whiskey sour', 'amaretto sour', 'hot toddy', 'eggnog', 'sangria',
+                'paloma', 'caipirinha', 'aperol', 'boulevardier', 'sazerac',
+            ],
             CategoryTag::Soup->value => [
                 'soup', 'chowder', 'chili', 'stew', 'bisque', 'broth', 'gumbo', 'pho',
             ],

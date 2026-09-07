@@ -202,6 +202,28 @@ class TaggingTest extends TestCase
         $this->assertNotContains('breakfast', $this->guessTags('Pot Roast'));
     }
 
+    /** Drinks rather than dishes, and a style rather than a cuisine. */
+    public function test_cocktails_are_recognised(): void
+    {
+        $this->assertContains('cocktail', $this->guessTags('Espresso Martini'));
+        $this->assertContains('cocktail', $this->guessTags('Old Fashioned'));
+        $this->assertContains('cocktail', $this->guessTags('Moscow Mule'));
+        $this->assertContains('cocktail', $this->guessTags('Whiskey Sour'));
+
+        $this->assertContains(CategoryTag::Cocktail, CategoryTag::styles());
+        $this->assertNotContains(CategoryTag::Cocktail, CategoryTag::cuisines());
+    }
+
+    /**
+     * "Sour" on its own would claim sour cream, and a cocktail sauce is for
+     * prawns.
+     */
+    public function test_the_cocktail_tag_does_not_overreach(): void
+    {
+        $this->assertNotContains('cocktail', $this->guessTags('Sour Cream Chicken Bake'));
+        $this->assertNotContains('cocktail', $this->guessTags('Shrimp with Cocktail Sauce'));
+    }
+
     /** Ingredients carry the cuisine when the name does not. */
     public function test_ingredients_reveal_a_cuisine_the_name_hides(): void
     {
