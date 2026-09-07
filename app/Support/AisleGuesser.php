@@ -68,6 +68,9 @@ class AisleGuesser
                 // and a carton of chicken stock to the butcher on "chicken".
                 'fish sauce', 'oyster sauce', 'clam juice',
                 'steak sauce', 'broth', 'stock', 'bouillon', 'gravy',
+                // A tin of cream of chicken soup was being sent to the meat
+                // counter, on the chicken.
+                'cream of', 'soup', 'condensed milk', 'evaporated milk',
             ]],
             [GroceryAisle::Drinks, [
                 'beer', 'wine', 'cider', 'soda', 'cola', 'juice', 'seltzer',

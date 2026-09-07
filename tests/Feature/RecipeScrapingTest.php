@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\GroceryAisle;
 use App\Enums\ImageStatus;
 use App\Enums\IngredientCategory;
 use App\Enums\IngredientsStatus;
@@ -13,6 +14,7 @@ use App\Models\Recipe;
 use App\Services\MealPlanner;
 use App\Services\Scraping\RecipeDetailImporter;
 use App\Services\Scraping\RecipeScraper;
+use App\Support\AisleGuesser;
 use App\Support\IngredientCategoryGuesser;
 use App\Support\IngredientLine;
 use Database\Seeders\HouseholdSeeder;
@@ -190,6 +192,33 @@ class RecipeScrapingTest extends TestCase
             'Cocoa powder', 'Allulose'] as $item) {
             $this->assertSame(IngredientCategory::PantryDry, $guesser->guess($item), $item);
         }
+    }
+
+    /**
+     * A shelf of tins whose names say nothing about being tins. Each was read
+     * as the fresh thing or the dairy thing: condensed milk as milk with
+     * twelve days on it, cranberry sauce as fruit, and cream of chicken soup
+     * as poultry — that last one bound for the meat counter.
+     */
+    public function test_tins_are_not_read_as_the_fresh_thing(): void
+    {
+        $guesser = new IngredientCategoryGuesser;
+        $aisles = new AisleGuesser;
+
+        foreach (['Jellied cranberry sauce', 'Cream of chicken soup', 'Coconut cream',
+            'Sweetened condensed milk', 'Cut green beans', 'Pumpkin pie mix'] as $item) {
+            $this->assertSame(IngredientCategory::JarredCanned, $guesser->guess($item), $item);
+            $this->assertSame(GroceryAisle::Pantry, $aisles->guess($item, null, false), $item);
+        }
+
+        // A packet of dry mix is neither the soup nor the dip it makes.
+        $this->assertSame(IngredientCategory::PantryDry, $guesser->guess('Onion soup mix'));
+
+        // The fresh and dairy things they are named after are untouched.
+        $this->assertSame(IngredientCategory::Produce, $guesser->guess('Green beans'));
+        $this->assertSame(IngredientCategory::Dairy, $guesser->guess('Milk'));
+        $this->assertSame(IngredientCategory::Dairy, $guesser->guess('Heavy cream'));
+        $this->assertSame(GroceryAisle::Meat, $aisles->guess('Chicken breast', null, false));
     }
 
     /** "Soda" was claiming baking soda and filing it with the beer. */

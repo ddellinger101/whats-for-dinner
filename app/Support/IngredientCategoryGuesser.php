@@ -46,6 +46,10 @@ class IngredientCategoryGuesser
                 // are — a bag of Swerve is baking goods, not produce.
                 'sweetener', 'monkfruit', 'monk fruit', 'erythritol', 'stevia',
                 'swerve', 'allulose', 'xylitol', 'cocoa',
+                // A packet of dry mix, which is neither the soup nor the dip
+                // it makes. Ahead of the tin rule, so an onion soup mix is not
+                // read as a tin of soup.
+                'soup mix', 'dip mix', 'seasoning mix', 'gravy mix',
             ]],
 
             /*
@@ -130,6 +134,14 @@ class IngredientCategoryGuesser
                 'tomato sauce', 'salsa', 'coconut milk', 'olives', 'pickles',
                 'capers', 'enchilada sauce', 'marinara', 'refried', 'adobo',
                 'diced tomatoes', 'crushed tomatoes', 'tomato puree', 'green chiles',
+                // A tin that says nothing about being a tin. Each of these was
+                // being read as the fresh thing or the dairy thing: condensed
+                // milk as milk with twelve days on it, cranberry sauce as
+                // fruit, cream of chicken as poultry.
+                'cranberry sauce', 'condensed milk', 'evaporated milk',
+                'coconut cream', 'cream of chicken', 'cream of mushroom',
+                'cream of celery', 'condensed soup', 'pumpkin pie mix',
+                'pumpkin puree', 'cut green beans', 'water chestnuts',
                 // Things that live in a jar on the shelf rather than in the
                 // fruit bowl: cocktail cherries are not cherries, and pickled
                 // ginger is not ginger.
