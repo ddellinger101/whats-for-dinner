@@ -22,6 +22,47 @@ class IngredientResolver
         private readonly IngredientCategoryGuesser $categories = new IngredientCategoryGuesser,
     ) {}
 
+    /**
+     * The ingredient this name already refers to, without creating one.
+     *
+     * Split out so a caller can ask whether a name is known before writing
+     * anything — a stocktake wants to see which of forty labels are about to
+     * become new rows, since a stray "Sriracha sauce" beside the existing
+     * "Sriracha" is work to undo later.
+     */
+    public function find(string $name): ?Ingredient
+    {
+        $name = Str::of($name)->squish()->limit(80, '')->value();
+
+        if ($name === '') {
+            return null;
+        }
+
+        if ($staple = PantryStaples::match($name)) {
+            return Ingredient::query()
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower($staple->name)])
+                ->first();
+        }
+
+        // One recipe writes "1 onion", the next writes "2 onions". Match every
+        // form and keep whichever spelling arrived first. Storing a forced
+        // singular would be worse: Str::singular mangles mass nouns such as
+        // molasses and greens.
+        $candidates = array_unique([
+            mb_strtolower($name),
+            mb_strtolower(Str::singular($name)),
+            mb_strtolower(Str::plural($name)),
+        ]);
+
+        return Ingredient::query()
+            ->where(function ($query) use ($candidates) {
+                foreach ($candidates as $candidate) {
+                    $query->orWhereRaw('LOWER(name) = ?', [$candidate]);
+                }
+            })
+            ->first();
+    }
+
     public function resolve(string $name): Ingredient
     {
         $name = Str::of($name)->squish()->limit(80, '')->value();
@@ -46,25 +87,7 @@ class IngredientResolver
             return $this->resolveStaple($staple);
         }
 
-        // One recipe writes "1 onion", the next writes "2 onions". Match every
-        // form and keep whichever spelling arrived first. Storing a forced
-        // singular would be worse: Str::singular mangles mass nouns such as
-        // molasses and greens.
-        $candidates = array_unique([
-            mb_strtolower($name),
-            mb_strtolower(Str::singular($name)),
-            mb_strtolower(Str::plural($name)),
-        ]);
-
-        $existing = Ingredient::query()
-            ->where(function ($query) use ($candidates) {
-                foreach ($candidates as $candidate) {
-                    $query->orWhereRaw('LOWER(name) = ?', [$candidate]);
-                }
-            })
-            ->first();
-
-        if ($existing) {
+        if ($existing = $this->find($name)) {
             return $existing;
         }
 

@@ -52,6 +52,9 @@ class AisleGuesser
             [GroceryAisle::Pantry, [
                 'oil', 'vinegar', 'cooking wine', 'rice wine', 'baking soda',
                 'baking powder', 'extract',
+                // Ahead of the seafood rule, which otherwise sends a bottle of
+                // fish sauce to the fish counter on the word "fish".
+                'fish sauce', 'oyster sauce', 'clam juice',
             ]],
             [GroceryAisle::Drinks, [
                 'beer', 'wine', 'cider', 'soda', 'cola', 'juice', 'seltzer',
