@@ -327,6 +327,26 @@ class PantryStaplesTest extends TestCase
         );
     }
 
+    /** A date printed on the packet beats one worked out from a shelf life. */
+    public function test_a_printed_use_by_date_can_be_given(): void
+    {
+        $this->artisan('pantry:add "White american cheese" --apply --expires=2026-09-01')
+            ->assertSuccessful();
+
+        $flag = InventoryFlag::whereHas('ingredient', fn ($q) => $q->where('name', 'White american cheese'))
+            ->firstOrFail();
+
+        $this->assertSame('2026-09-01', $flag->expires_on->toDateString());
+    }
+
+    public function test_an_unreadable_date_is_refused_before_anything_is_written(): void
+    {
+        $this->artisan('pantry:add "White american cheese" --apply --expires=09.01.26')
+            ->assertFailed();
+
+        $this->assertSame(0, InventoryFlag::count());
+    }
+
     /**
      * Not only staples. A shelf of sauces was put in without dates on purpose,
      * and recomputing from shelf life would hand ketchup a use-by window.

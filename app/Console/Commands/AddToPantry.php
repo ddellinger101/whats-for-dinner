@@ -6,6 +6,7 @@ use App\Models\InventoryFlag;
 use App\Services\IngredientResolver;
 use App\Services\InventoryService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 
 /**
  * Puts a list of things into the pantry in one go.
@@ -24,6 +25,7 @@ class AddToPantry extends Command
     protected $signature = 'pantry:add
         {name* : The things to add, as they should be named}
         {--apply : Actually write them}
+        {--expires= : Use this date (Y-m-d) instead of the shelf life, for a printed one}
         {--no-expiry : Leave the use-by date empty, for things that keep indefinitely}';
 
     protected $description = 'Add several things to the pantry at once';
@@ -32,6 +34,27 @@ class AddToPantry extends Command
     {
         $apply = (bool) $this->option('apply');
         $noExpiry = (bool) $this->option('no-expiry');
+        $expires = $this->option('expires');
+
+        if ($expires !== null && $noExpiry) {
+            $this->error('Pass one of --expires and --no-expiry, not both.');
+
+            return self::FAILURE;
+        }
+
+        // Parsed before anything is written, so a typo is not discovered
+        // halfway through a shelf.
+        if ($expires !== null) {
+            try {
+                $expires = Carbon::createFromFormat('Y-m-d', $expires)->startOfDay();
+            } catch (\Throwable) {
+                $this->error("Not a date I can read: {$this->option('expires')}. Use Y-m-d.");
+
+                return self::FAILURE;
+            }
+
+            $this->line("  Use by {$expires->format('j M Y')}.");
+        }
 
         $created = 0;
         $reused = 0;
@@ -72,11 +95,12 @@ class AddToPantry extends Command
 
             $flag = $inventory->add($ingredient, null, null);
 
-            // Ketchup does not go off on any timescale worth a use-by window,
-            // and a shelf of sauces all turning at once would bury the things
-            // that genuinely need using up.
-            if ($noExpiry) {
-                $flag->update(['expires_on' => null]);
+            // A date off the packet beats one worked out from a category's
+            // shelf life. Ketchup, meanwhile, does not go off on any timescale
+            // worth a use-by window, and a shelf of sauces all turning at once
+            // would bury the things that genuinely need using up.
+            if ($noExpiry || $expires !== null) {
+                $flag->update(['expires_on' => $expires]);
             }
         }
 
