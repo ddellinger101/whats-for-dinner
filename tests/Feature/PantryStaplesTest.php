@@ -116,7 +116,8 @@ class PantryStaplesTest extends TestCase
     {
         foreach ([
             'Salt' => 'Salt',
-            'Kosher salt' => 'Salt',
+            // Kosher salt has a jar of its own — see the test below.
+            'Kosher salt' => 'Kosher salt',
             'Sea salt' => 'Salt',
             'Pepper' => 'Black pepper',
             'Black pepper' => 'Black pepper',
@@ -131,6 +132,28 @@ class PantryStaplesTest extends TestCase
         ] as $written => $expected) {
             $this->assertSame($expected, PantryStaples::match($written)?->name, $written);
         }
+    }
+
+    /**
+     * Kosher salt is its own jar rather than an alias of Salt: it is what the
+     * household reaches for, and the grains are a different size, so a recipe
+     * asking for one does not mean the other. It has to be matched before the
+     * qualifier-stripping rule reduces it to "salt".
+     */
+    public function test_kosher_salt_is_its_own_jar(): void
+    {
+        $this->assertSame('Kosher salt', PantryStaples::match('Kosher salt')?->name);
+        $this->assertSame('Kosher salt', PantryStaples::match('coarse kosher salt')?->name);
+
+        // The other salts still fold into the plain one.
+        $this->assertSame('Salt', PantryStaples::match('Sea salt')?->name);
+        $this->assertSame('Salt', PantryStaples::match('Table salt')?->name);
+
+        // And a phrase naming both still means both.
+        $this->assertSame(
+            'Salt and pepper',
+            PantryStaples::match('Kosher salt and fresh ground black pepper')?->name,
+        );
     }
 
     /**

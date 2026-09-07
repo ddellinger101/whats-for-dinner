@@ -42,6 +42,10 @@ class IngredientCategoryGuesser
                 // Ahead of the drinks rule, where "soda" was claiming baking
                 // soda and filing it with the beer.
                 'baking soda', 'baking powder', 'bicarbonate', 'baking',
+                // Sugar substitutes, by their names as much as by what they
+                // are — a bag of Swerve is baking goods, not produce.
+                'sweetener', 'monkfruit', 'monk fruit', 'erythritol', 'stevia',
+                'swerve', 'allulose', 'xylitol', 'cocoa',
             ]],
 
             // Cheese before condiments, because cheese is named after whatever

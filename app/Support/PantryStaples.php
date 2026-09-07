@@ -90,8 +90,14 @@ class PantryStaples
             // stands beside the hob, but always in. The dozen ways the archive
             // writes these are handled by saltAndPepper() rather than listed
             // here — see the note there.
+            // Kosher salt is its own jar rather than an alias of Salt: it is
+            // what the household actually reaches for, and its grains are a
+            // different size, so a recipe asking for one does not mean the
+            // other. Listed before Salt so it is matched before the
+            // qualifier-stripping rule below reduces it to "salt".
+            new PantryStaple('Kosher salt', 'spice', ['coarse kosher salt']),
             new PantryStaple('Salt', 'spice', [
-                'kosher salt', 'sea salt', 'table salt', 'fine salt',
+                'sea salt', 'table salt', 'fine salt',
                 'coarse salt', 'fine sea salt', 'coarse sea salt',
             ]),
             new PantryStaple('Black pepper', 'spice', [

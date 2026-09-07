@@ -178,6 +178,17 @@ class RecipeScrapingTest extends TestCase
         $this->assertSame(IngredientCategory::Produce, $guesser->guess('Red bell pepper'));
     }
 
+    /** A bag of Swerve is baking goods, not produce. */
+    public function test_sugar_substitutes_are_dry_goods(): void
+    {
+        $guesser = new IngredientCategoryGuesser;
+
+        foreach (['Monkfruit sweetener', 'Swerve sweetener', 'Erythritol', 'Stevia',
+            'Cocoa powder', 'Allulose'] as $item) {
+            $this->assertSame(IngredientCategory::PantryDry, $guesser->guess($item), $item);
+        }
+    }
+
     /** "Soda" was claiming baking soda and filing it with the beer. */
     public function test_baking_staples_are_dry_goods_not_drinks(): void
     {

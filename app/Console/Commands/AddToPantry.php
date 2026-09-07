@@ -25,6 +25,8 @@ class AddToPantry extends Command
     protected $signature = 'pantry:add
         {name* : The things to add, as they should be named}
         {--apply : Actually write them}
+        {--quantity= : How much there is, applied to every name given}
+        {--unit= : The unit that quantity is in}
         {--expires= : Use this date (Y-m-d) instead of the shelf life, for a printed one}
         {--no-expiry : Leave the use-by date empty, for things that keep indefinitely}';
 
@@ -106,7 +108,11 @@ class AddToPantry extends Command
                 continue;
             }
 
-            $flag = $inventory->add($ingredient, null, null);
+            $flag = $inventory->add(
+                $ingredient,
+                $this->option('quantity') === null ? null : (float) $this->option('quantity'),
+                $this->option('unit'),
+            );
 
             // A date off the packet beats one worked out from a category's
             // shelf life. Ketchup, meanwhile, does not go off on any timescale
