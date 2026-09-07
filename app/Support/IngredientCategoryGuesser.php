@@ -44,6 +44,16 @@ class IngredientCategoryGuesser
                 'baking soda', 'baking powder', 'bicarbonate', 'baking',
             ]],
 
+            // Cheese before condiments, because cheese is named after whatever
+            // it was flavoured with: horseradish cheddar was filed as a
+            // condiment on the horseradish, and garlic herb cheese would have
+            // gone the same way. Matched on the word, so cheesecake is still
+            // pudding.
+            [IngredientCategory::Dairy, [
+                'cheese', 'cheddar', 'mozzarella', 'parmesan', 'provolone',
+                'gouda', 'brie', 'feta', 'ricotta', 'gruyere', 'boursin',
+            ]],
+
             // Condiments before drinks: "red wine vinegar" and "cooking wine"
             // are things you cook with, not things you pour.
             [IngredientCategory::Condiment, [

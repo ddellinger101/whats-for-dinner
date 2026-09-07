@@ -139,6 +139,26 @@ class RecipeScrapingTest extends TestCase
         $this->assertSame(IngredientCategory::Protein, $guesser->guess('Ribeye steak'));
     }
 
+    /**
+     * Cheese is named after whatever it was flavoured with, so it has to be
+     * settled before those flavours are: horseradish cheddar was filed as a
+     * condiment on the horseradish.
+     */
+    public function test_cheese_is_dairy_whatever_it_is_flavoured_with(): void
+    {
+        $guesser = new IngredientCategoryGuesser;
+
+        foreach (['Horseradish cheddar cheese', 'Pepper jack cheese', 'Boursin cheese',
+            'Garlic herb cheese', 'Feta cheese', 'Cream cheese'] as $item) {
+            $this->assertSame(IngredientCategory::Dairy, $guesser->guess($item), $item);
+        }
+
+        // The flavourings themselves are unaffected, and a cheesecake is still
+        // not a cheese — the match is on the whole word.
+        $this->assertSame(IngredientCategory::Condiment, $guesser->guess('Prepared horseradish'));
+        $this->assertNotSame(IngredientCategory::Dairy, $guesser->guess('Cheesecake'));
+    }
+
     /** "Soda" was claiming baking soda and filing it with the beer. */
     public function test_baking_staples_are_dry_goods_not_drinks(): void
     {
