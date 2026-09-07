@@ -13,8 +13,10 @@ use App\Models\User;
 use App\Services\Google\GoogleCalendar;
 use App\Services\Google\GoogleOAuth;
 use App\Services\MealPlanner;
+use Database\Seeders\HouseholdSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -33,7 +35,7 @@ class GoogleCalendarTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\HouseholdSeeder::class);
+        $this->seed(HouseholdSeeder::class);
         $this->user = User::factory()->create();
 
         config()->set('services.google.client_id', 'test-client-id');
@@ -139,7 +141,7 @@ class GoogleCalendarTest extends TestCase
     {
         $this->connected();
 
-        $raw = \Illuminate\Support\Facades\DB::table('google_credentials')->first();
+        $raw = DB::table('google_credentials')->first();
 
         $this->assertNotSame('refresh-token', $raw->refresh_token);
         $this->assertSame('refresh-token', GoogleCredential::current()->refresh_token);
@@ -285,6 +287,55 @@ class GoogleCalendarTest extends TestCase
     }
 
     // -------------------------------------------------------------- settings
+
+    // -------------------------------------------------------- the check
+
+    /**
+     * The failure this exists for is silent: planning a meal queues a job, the
+     * job fails on the far side of a network, and the only trace is a row in
+     * failed_jobs. Answering "is it fixed now?" meant planning a meal and
+     * waiting to see.
+     */
+    public function test_the_check_reports_a_working_connection(): void
+    {
+        $this->connected();
+        Http::fake([
+            'oauth2.googleapis.com/token' => Http::response([
+                'access_token' => 'fresh', 'expires_in' => 3600,
+            ]),
+        ]);
+
+        $this->artisan('google:check')
+            ->expectsOutputToContain('Google accepted the credentials')
+            ->assertSuccessful();
+    }
+
+    /**
+     * A rotated secret is the one failure that looks like everything is fine —
+     * connected, calendar chosen, nothing written — so it gets named.
+     */
+    public function test_the_check_names_a_rejected_secret(): void
+    {
+        $this->connected();
+        Http::fake([
+            'oauth2.googleapis.com/token' => Http::response([
+                'error' => 'invalid_client',
+                'error_description' => 'The provided client secret is invalid.',
+            ], 401),
+        ]);
+
+        $this->artisan('google:check')
+            ->expectsOutputToContain('Google refused the credentials')
+            ->expectsOutputToContain('GOOGLE_CLIENT_SECRET')
+            ->assertFailed();
+    }
+
+    public function test_the_check_says_when_nobody_has_connected(): void
+    {
+        $this->artisan('google:check')
+            ->expectsOutputToContain('Nobody has connected an account yet')
+            ->assertFailed();
+    }
 
     public function test_the_settings_screen_offers_a_connect_button(): void
     {
