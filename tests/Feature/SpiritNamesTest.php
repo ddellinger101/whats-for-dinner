@@ -100,18 +100,26 @@ class SpiritNamesTest extends TestCase
         $this->assertTrue($bourbon->is($resolver->find('Woodford Reserve Bourbon')));
     }
 
-    /** The syrups a cocktail wants belong on the bar, not with the maple. */
-    public function test_cocktail_syrups_are_bar_stock(): void
+    /**
+     * A syrup is a syrup wherever it is destined. Demerara and simple syrup
+     * live in the fridge with the maple and the table syrup, so they are
+     * filed with them — a section that does not say where a thing actually is
+     * is worth nothing.
+     */
+    public function test_syrups_are_condiments_whatever_they_are_for(): void
     {
         $categories = new IngredientCategoryGuesser;
         $aisles = new AisleGuesser;
 
-        foreach (['Rich demerara syrup', 'Simple syrup', 'Orgeat'] as $item) {
-            $this->assertSame(IngredientCategory::Bar, $categories->guess($item), $item);
-            $this->assertSame(GroceryAisle::Bar, $aisles->guess($item, null, false), $item);
+        foreach (['Rich demerara syrup', 'Simple syrup', 'Orgeat', 'Grenadine',
+            'Agave nectar', 'Table syrup', 'Maple syrup'] as $item) {
+            $this->assertSame(IngredientCategory::Condiment, $categories->guess($item), $item);
+            $this->assertSame(GroceryAisle::Pantry, $aisles->guess($item, null, false), $item);
         }
 
-        // Table syrup is still breakfast.
-        $this->assertSame(IngredientCategory::Condiment, $categories->guess('Table syrup'));
+        // The bar keeps the bottles, the bitters and the garnishes.
+        foreach (['Bourbon', 'Angostura bitters', 'Cocktail cherries', 'Tonic water'] as $item) {
+            $this->assertSame(IngredientCategory::Bar, $categories->guess($item), $item);
+        }
     }
 }

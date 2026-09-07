@@ -106,7 +106,9 @@ class IngredientCategoryGuesser
                 // Any syrup, for the same reason as any oil: naming maple and
                 // leaving table, simple and corn syrup to fall through to
                 // produce is a list that only covers what someone thought of.
-                'syrup',
+                // Cocktail syrups included — they live in the fridge with the
+                // rest, whatever they are for.
+                'syrup', 'grenadine', 'orgeat', 'agave nectar',
                 // A bottle of steak sauce is not steak. Condiments are checked
                 // before protein, so naming it here is enough.
                 'steak sauce', 'cocktail sauce', 'chili sauce', 'sweet and sour',

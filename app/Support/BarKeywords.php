@@ -32,11 +32,15 @@ class BarKeywords
             'chambord', 'st germain', 'midori', 'schnapps', 'creme de',
             'jagermeister', 'fireball', 'aperitif', 'vermouth',
 
-            // Mixers and garnishes
-            'bitters', 'grenadine', 'simple syrup', 'demerara syrup',
-            'rich syrup', 'orgeat', 'agave nectar', 'tonic water', 'club soda',
-            'sweet and sour mix', 'margarita mix', 'cocktail cherries',
-            'cocktail onions', 'cocktail garnish', 'maraschino',
+            // Mixers and garnishes.
+            //
+            // No syrups. Simple syrup, demerara and the rest live in the
+            // fridge with the maple and the table syrup, not on the bar, and
+            // the sections are worth nothing if they do not say where a thing
+            // actually is. They are condiments; see the syrup rule there.
+            'bitters', 'tonic water', 'club soda', 'sweet and sour mix',
+            'margarita mix', 'cocktail cherries', 'cocktail onions',
+            'cocktail garnish', 'maraschino',
         ];
     }
 }

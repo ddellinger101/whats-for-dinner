@@ -121,22 +121,23 @@ class GroceryAislesTest extends TestCase
     }
 
     /**
-     * The bar is its own trip, and almost everything on it is claimed by a
-     * later rule: simple syrup by "syrup", club soda by "soda", the cherries
-     * by the jar rule.
+     * The bar is its own trip, and much of it is claimed by a later rule:
+     * club soda by "soda", the cherries by the jar rule.
      */
     public function test_the_bar_has_an_aisle_of_its_own(): void
     {
         $guesser = new AisleGuesser;
 
-        foreach (['Gin', 'Bourbon', 'Sweet vermouth', 'Angostura bitters', 'Simple syrup',
+        foreach (['Gin', 'Bourbon', 'Sweet vermouth', 'Angostura bitters',
             'Cocktail cherries', 'Cocktail onions', 'Tonic water', 'Club soda', 'Triple sec'] as $item) {
             $this->assertSame(GroceryAisle::Bar, $guesser->guess($item), $item);
         }
 
-        // Cocktail sauce is for prawns, and beer is still a drink.
+        // Cocktail sauce is for prawns, beer is still a drink, and a syrup is
+        // a syrup wherever it is destined — those live in the fridge.
         $this->assertSame(GroceryAisle::Pantry, $guesser->guess('Cocktail sauce'));
         $this->assertSame(GroceryAisle::Pantry, $guesser->guess('Sherry vinegar'));
+        $this->assertSame(GroceryAisle::Pantry, $guesser->guess('Simple syrup'));
         $this->assertSame(GroceryAisle::Drinks, $guesser->guess('Beer'));
         $this->assertSame(GroceryAisle::Drinks, $guesser->guess('Red wine'));
     }
