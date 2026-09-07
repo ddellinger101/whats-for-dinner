@@ -439,6 +439,49 @@ class PantryTest extends TestCase
     }
 
     /**
+     * Read in the order things go off, not in the order of the alphabet.
+     * Dairy turns before the condiments do, so it is what you want at the top;
+     * the alphabet put bakery and condiments above it for no reason anyone
+     * cares about.
+     */
+    public function test_categories_are_ordered_by_how_soon_they_go_off(): void
+    {
+        // All beyond the four-day at-risk window, so they stay in their
+        // categories rather than being lifted into "use these up".
+        $this->inventory->add($this->ingredient('Ketchup', IngredientCategory::Condiment, 90), 1, 'bottle');
+        $this->inventory->add($this->ingredient('Rice', IngredientCategory::PantryDry, 300), 2, 'cup');
+        $this->inventory->add($this->ingredient('Milk', IngredientCategory::Dairy, 9), 1, 'gal');
+        $this->inventory->add($this->ingredient('Yoghurt', IngredientCategory::Dairy, 7), 2, 'cup');
+
+        $order = $this->actingAs($this->user)->get(route('pantry'))
+            ->assertOk()
+            ->viewData('byCategory')
+            ->keys()
+            ->all();
+
+        $this->assertSame(['dairy', 'condiment', 'pantry_dry'], $order);
+    }
+
+    /**
+     * Not knowing when something expires is not the same as it expiring today,
+     * so it sorts last rather than being lifted above the milk.
+     */
+    public function test_a_category_with_no_dates_sorts_last(): void
+    {
+        $undated = $this->inventory->add($this->ingredient('Bay leaves', IngredientCategory::PantryDry, 300), null, null);
+        $undated->update(['expires_on' => null]);
+        $this->inventory->add($this->ingredient('Ketchup', IngredientCategory::Condiment, 90), 1, 'bottle');
+
+        $order = $this->actingAs($this->user)->get(route('pantry'))
+            ->assertOk()
+            ->viewData('byCategory')
+            ->keys()
+            ->all();
+
+        $this->assertSame(['condiment', 'pantry_dry'], $order);
+    }
+
+    /**
      * Something running out is often something bought every week, so the row
      * that tells you it is going off is where the list should be one tap away.
      */

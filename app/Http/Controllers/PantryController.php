@@ -11,6 +11,7 @@ use App\Services\InventoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 /**
@@ -56,10 +57,14 @@ class PantryController extends Controller
                 ->filter(fn (InventoryFlag $flag) => in_array($flag->ingredient_id, $atRiskIds, true))
                 ->sortBy('expires_on')
                 ->values(),
+            // Ordered by how soon the category is going off on average, not
+            // alphabetically. Dairy turns before the condiments do, so it is
+            // the one worth reading first — and the alphabet had bakery and
+            // condiments above it for no reason anyone cares about.
             'byCategory' => $inStock
                 ->reject(fn (InventoryFlag $flag) => in_array($flag->ingredient_id, $atRiskIds, true))
                 ->groupBy(fn (InventoryFlag $flag) => $flag->ingredient->category->value)
-                ->sortKeys(),
+                ->sortBy(fn ($flags) => $this->averageDaysLeft($flags, $today)),
             'categories' => collect(IngredientCategory::cases())->keyBy->value,
             'total' => $inStock->count(),
             'today' => $today,
@@ -72,6 +77,24 @@ class PantryController extends Controller
                 ->get()
                 ->filter(fn (InventoryFlag $flag) => $flag->ingredient !== null),
         ]);
+    }
+
+    /**
+     * How soon this category is going off, averaged over what is in it.
+     *
+     * Anything with no date sorts last rather than counting as zero: not
+     * knowing when something expires is not the same as it expiring today,
+     * and treating it that way would push a shelf of tins above the milk.
+     *
+     * @param  Collection<int, InventoryFlag>  $flags
+     */
+    private function averageDaysLeft($flags, Carbon $today): float
+    {
+        $days = $flags
+            ->map(fn (InventoryFlag $flag) => $flag->daysLeft($today))
+            ->filter(fn (?int $d) => $d !== null);
+
+        return $days->isEmpty() ? INF : (float) $days->avg();
     }
 
     public function store(Request $request): RedirectResponse
