@@ -167,6 +167,41 @@ class TaggingTest extends TestCase
         }
     }
 
+    /**
+     * Course tags, added because banana cookies are a dessert and a breakfast.
+     * Tags are additive, so it gets both rather than having to pick.
+     */
+    public function test_a_dish_can_be_a_dessert_and_a_breakfast(): void
+    {
+        $tags = $this->guessTags('Banana Bread Cookies');
+
+        $this->assertContains('dessert', $tags);
+        $this->assertContains('breakfast', $tags);
+    }
+
+    public function test_breakfast_and_lunch_are_recognised(): void
+    {
+        $this->assertContains('breakfast', $this->guessTags('Buttermilk Pancakes'));
+        $this->assertContains('breakfast', $this->guessTags('Sausage and Egg Frittata'));
+        $this->assertContains('lunch', $this->guessTags('Turkey Sandwich'));
+        $this->assertContains('lunch', $this->guessTags('Grilled Cheese'));
+
+        // They are courses, not cuisines, so they group with the styles.
+        $this->assertContains(CategoryTag::Breakfast, CategoryTag::styles());
+        $this->assertNotContains(CategoryTag::Breakfast, CategoryTag::cuisines());
+    }
+
+    /**
+     * Half the archive could be somebody's lunch, so the list names the things
+     * that are lunch and little else.
+     */
+    public function test_lunch_does_not_claim_every_dinner(): void
+    {
+        $this->assertNotContains('lunch', $this->guessTags('Beef Stroganoff'));
+        $this->assertNotContains('lunch', $this->guessTags('Chicken Caesar Salad'));
+        $this->assertNotContains('breakfast', $this->guessTags('Pot Roast'));
+    }
+
     /** Ingredients carry the cuisine when the name does not. */
     public function test_ingredients_reveal_a_cuisine_the_name_hides(): void
     {

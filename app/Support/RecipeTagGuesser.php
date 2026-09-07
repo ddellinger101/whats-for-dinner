@@ -71,6 +71,21 @@ class RecipeTagGuesser
                 'chicken fried', 'pulled pork', 'brisket', 'jambalaya', 'gumbo', 'cajun',
                 'big mac', 'sliders', 'chili dog', 'cornbread', 'pot pie',
             ],
+            // A course rather than a style, and additive like the rest: a
+            // breakfast dish that is also a dessert gets both.
+            CategoryTag::Breakfast->value => [
+                'breakfast', 'pancake', 'waffle', 'french toast', 'omelet', 'omelette',
+                'frittata', 'scramble', 'scrambled', 'granola', 'oatmeal', 'porridge',
+                'overnight oats', 'hash brown', 'benedict', 'quiche', 'cereal',
+                'bagel', 'banana bread', 'parfait', 'smoothie', 'breakfast burrito',
+            ],
+            // Deliberately narrow. Half the archive could be somebody's lunch,
+            // so this names the things that are lunch and little else —
+            // "salad" and "soup" have tags of their own already.
+            CategoryTag::Lunch->value => [
+                'lunch', 'sandwich', 'panini', 'grilled cheese', 'blt', 'hoagie',
+                'sub sandwich', 'club sandwich', 'bento', 'pita pocket',
+            ],
             CategoryTag::Soup->value => [
                 'soup', 'chowder', 'chili', 'stew', 'bisque', 'broth', 'gumbo', 'pho',
             ],

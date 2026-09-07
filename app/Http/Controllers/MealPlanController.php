@@ -16,6 +16,7 @@ use App\Services\RecipeSuggestionRanker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 /**
@@ -114,11 +115,49 @@ class MealPlanController extends Controller
                 ->orderBy('name')
                 ->limit(40)
                 ->get(),
-            'recipes' => $search === ''
-                ? collect()
-                : Recipe::where('name', 'like', "%{$search}%")->orderBy('name')->limit(20)->get(),
+            'recipes' => $this->pickerRecipes($mealSlot, $search),
             'dietMode' => HouseholdSetting::current()->diet_mode,
         ]);
+    }
+
+    /**
+     * The recipes worth offering under a breakfast or lunch slot.
+     *
+     * Those slots default to the simple-item library (spec 4.5) and only
+     * showed a recipe if you already knew its name and typed it. That left the
+     * Breakfast and Lunch tags doing nothing where they matter most: the point
+     * of tagging banana cookies as breakfast is that they turn up when you are
+     * deciding breakfast.
+     *
+     * Filtered in PHP rather than in SQL because the tags are a JSON column,
+     * and a hundred and fifty recipes is nothing to walk.
+     *
+     * @return Collection<int, Recipe>
+     */
+    private function pickerRecipes(MealSlot $slot, string $search): Collection
+    {
+        if ($search !== '') {
+            return Recipe::where('name', 'like', "%{$search}%")->orderBy('name')->limit(20)->get();
+        }
+
+        $tag = match ($slot) {
+            MealSlot::Breakfast => CategoryTag::Breakfast,
+            MealSlot::Lunch => CategoryTag::Lunch,
+            default => null,
+        };
+
+        if (! $tag) {
+            return collect();
+        }
+
+        return Recipe::selectable()
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (Recipe $recipe) => $recipe->category_tags->contains(
+                fn (CategoryTag $t) => $t === $tag,
+            ))
+            ->take(20)
+            ->values();
     }
 
     public function setPrimary(Request $request, string $date, string $slot): RedirectResponse

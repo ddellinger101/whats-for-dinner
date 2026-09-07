@@ -208,6 +208,35 @@ class ScreensTest extends TestCase
             ->assertSee('Chicken Bake');
     }
 
+    /**
+     * The point of tagging banana cookies as breakfast is that they turn up
+     * when you are deciding breakfast. Before this the slot only showed a
+     * recipe if you already knew its name and typed it.
+     */
+    public function test_the_breakfast_picker_offers_recipes_tagged_breakfast(): void
+    {
+        $cookies = $this->makeRecipe('Banana Cookies');
+        $cookies->update(['category_tags' => ['dessert', 'breakfast']]);
+        $this->makeRecipe('Beef Stroganoff');
+
+        $response = $this->actingAs($this->user)
+            ->get(route('plan.picker', ['date' => self::WEDNESDAY, 'slot' => 'breakfast']))
+            ->assertOk();
+
+        $this->assertSame(['Banana Cookies'], $response->viewData('recipes')->pluck('name')->all());
+    }
+
+    /** A dinner slot ranks the whole library, so it is not narrowed by a tag. */
+    public function test_the_dinner_picker_is_not_filtered_to_a_course_tag(): void
+    {
+        $this->makeRecipe('Beef Stroganoff');
+
+        $this->actingAs($this->user)
+            ->get(route('plan.picker', ['date' => self::WEDNESDAY, 'slot' => 'dinner']))
+            ->assertOk()
+            ->assertSee('Beef Stroganoff');
+    }
+
     /** Spec 4.5: breakfast and lunch default to the simple-item library. */
     public function test_the_lunch_picker_offers_saved_items_not_the_ranker(): void
     {

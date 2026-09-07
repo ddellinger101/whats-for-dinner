@@ -5,6 +5,10 @@ namespace App\Enums;
 enum CategoryTag: string
 {
     // Style and course
+    // Additive, like every tag here: banana cookies are a dessert and a
+    // breakfast, and saying so is more useful than picking one.
+    case Breakfast = 'breakfast';
+    case Lunch = 'lunch';
     case Soup = 'soup';
     case Salad = 'salad';
     case Keto = 'keto';
