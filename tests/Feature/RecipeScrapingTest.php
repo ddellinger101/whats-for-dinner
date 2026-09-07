@@ -221,6 +221,32 @@ class RecipeScrapingTest extends TestCase
         $this->assertSame(GroceryAisle::Meat, $aisles->guess('Chicken breast', null, false));
     }
 
+    /**
+     * A shelf of dry goods, each named after something it is not. Egg noodles
+     * were dairy on the egg, sunflower seed butter was dairy on the butter,
+     * and a bag of crispy onion strings was produce on the onion.
+     */
+    public function test_dry_goods_are_not_read_as_what_they_are_named_after(): void
+    {
+        $guesser = new IngredientCategoryGuesser;
+
+        foreach (['Pearl barley', 'Green lentils', 'Rice noodles', 'Egg noodles',
+            'Crispy onion strings', 'Panko breadcrumbs'] as $item) {
+            $this->assertSame(IngredientCategory::PantryDry, $guesser->guess($item), $item);
+        }
+
+        // Jars you spread from. "Butter" alone still means dairy, so each has
+        // to say what kind it is.
+        foreach (['Peanut butter', 'Sunflower seed butter', 'Hazelnut spread'] as $item) {
+            $this->assertSame(IngredientCategory::Condiment, $guesser->guess($item), $item);
+        }
+
+        // The things they are named after keep their own answer.
+        $this->assertSame(IngredientCategory::Dairy, $guesser->guess('Unsalted butter'));
+        $this->assertSame(IngredientCategory::Dairy, $guesser->guess('Eggs'));
+        $this->assertSame(IngredientCategory::Produce, $guesser->guess('Red onion'));
+    }
+
     /** "Soda" was claiming baking soda and filing it with the beer. */
     public function test_baking_staples_are_dry_goods_not_drinks(): void
     {

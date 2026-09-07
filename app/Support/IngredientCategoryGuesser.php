@@ -50,6 +50,15 @@ class IngredientCategoryGuesser
                 // it makes. Ahead of the tin rule, so an onion soup mix is not
                 // read as a tin of soup.
                 'soup mix', 'dip mix', 'seasoning mix', 'gravy mix',
+                // Grains and dry pasta. "Noodle" is here rather than lower
+                // down because egg noodles were being read as dairy, on the
+                // egg.
+                'barley', 'noodle', 'couscous', 'quinoa', 'bulgur', 'farro',
+                'orzo', 'polenta', 'grits',
+                // A bag of crispy fried onions keeps for months on a shelf;
+                // the produce rule was claiming it on the onion.
+                'onion strings', 'crispy onion', 'fried onion', 'salad topper',
+                'crouton', 'breadcrumb', 'panko',
             ]],
 
             /*
@@ -95,7 +104,12 @@ class IngredientCategoryGuesser
                 // unlisted oil would have done the same. Matched on a word
                 // boundary, so "shrimp boil" is untouched.
                 'oil', 'cooking spray',
-                'honey', 'peanut butter', 'jam', 'jelly', 'pesto',
+                // Jars you spread from. "Butter" alone means dairy, so each
+                // of these has to say what kind it is — sunflower seed butter
+                // was being filed with the milk.
+                'honey', 'peanut butter', 'seed butter', 'sunflower butter',
+                'almond butter', 'cashew butter', 'nut butter', 'hazelnut spread',
+                'chocolate spread', 'nutella', 'jam', 'jelly', 'pesto',
                 // Any syrup, for the same reason as any oil: naming maple and
                 // leaving table, simple and corn syrup to fall through to
                 // produce is a list that only covers what someone thought of.
