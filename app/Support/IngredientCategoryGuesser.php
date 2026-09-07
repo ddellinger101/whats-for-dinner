@@ -70,14 +70,7 @@ class IngredientCategoryGuesser
              * a condiment for prawns and has no business here — and so is
              * "sherry", which would take the sherry vinegar with it.
              */
-            [IngredientCategory::Bar, [
-                'bitters', 'vermouth', 'triple sec', 'cointreau', 'campari',
-                'aperol', 'amaro', 'grenadine', 'simple syrup', 'tonic water',
-                'club soda', 'cocktail cherries', 'cocktail onions',
-                'cocktail garnish', 'maraschino', 'liqueur', 'schnapps',
-                'bourbon', 'whiskey', 'whisky', 'vodka', 'gin', 'tequila',
-                'rum', 'mezcal', 'brandy', 'cognac', 'aperitif',
-            ]],
+            [IngredientCategory::Bar, BarKeywords::all()],
 
             // Cheese before condiments, because cheese is named after whatever
             // it was flavoured with: horseradish cheddar was filed as a

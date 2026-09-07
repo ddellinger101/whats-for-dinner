@@ -52,14 +52,7 @@ class AisleGuesser
             // The bar before the pantry and the drinks, for the same reason the
             // category guesser puts it first: simple syrup would otherwise be
             // filed by "syrup" and club soda by "soda".
-            [GroceryAisle::Bar, [
-                'bitters', 'vermouth', 'triple sec', 'cointreau', 'campari',
-                'aperol', 'amaro', 'grenadine', 'simple syrup', 'tonic water',
-                'club soda', 'cocktail cherries', 'cocktail onions',
-                'cocktail garnish', 'maraschino', 'liqueur', 'schnapps',
-                'bourbon', 'whiskey', 'whisky', 'vodka', 'gin', 'tequila',
-                'rum', 'mezcal', 'brandy', 'cognac', 'aperitif',
-            ]],
+            [GroceryAisle::Bar, BarKeywords::all()],
             [GroceryAisle::Pantry, [
                 'oil', 'vinegar', 'cooking wine', 'rice wine', 'baking soda',
                 'baking powder', 'extract',

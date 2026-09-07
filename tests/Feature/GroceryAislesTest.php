@@ -16,6 +16,8 @@ use App\Models\User;
 use App\Services\GroceryListBuilder;
 use App\Services\MealPlanner;
 use App\Support\AisleGuesser;
+use App\Support\BarKeywords;
+use App\Support\IngredientCategoryGuesser;
 use Database\Seeders\HouseholdSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -137,6 +139,44 @@ class GroceryAislesTest extends TestCase
         $this->assertSame(GroceryAisle::Pantry, $guesser->guess('Sherry vinegar'));
         $this->assertSame(GroceryAisle::Drinks, $guesser->guess('Beer'));
         $this->assertSame(GroceryAisle::Drinks, $guesser->guess('Red wine'));
+    }
+
+    /**
+     * The two guessers read the same list, or they disagree about the same
+     * bottle: the aisle rules run before the category is consulted, so each
+     * needs the bar names, and two copies would drift.
+     */
+    public function test_both_guessers_agree_about_what_is_bar_stock(): void
+    {
+        $aisles = new AisleGuesser;
+        $categories = new IngredientCategoryGuesser;
+
+        foreach (BarKeywords::all() as $keyword) {
+            $this->assertSame(
+                IngredientCategory::Bar,
+                $categories->guess($keyword),
+                "{$keyword} should be bar stock",
+            );
+            $this->assertSame(
+                GroceryAisle::Bar,
+                $aisles->guess($keyword, null, false),
+                "{$keyword} should be on the bar aisle",
+            );
+        }
+    }
+
+    /** "Amaro" does not catch amaretto: the word ends differently. */
+    public function test_liqueurs_named_in_full_reach_the_bar(): void
+    {
+        $guesser = new AisleGuesser;
+
+        foreach (['Amaretto', 'Kahlua', 'Irish cream', 'Creme de menthe', 'Coconut rum',
+            'Citrus vodka', 'Dark rum', 'Angostura bitters'] as $item) {
+            $this->assertSame(GroceryAisle::Bar, $guesser->guess($item), $item);
+        }
+
+        // Irish cream is not cream, but heavy cream still is.
+        $this->assertSame(GroceryAisle::Dairy, $guesser->guess('Heavy cream'));
     }
 
     /** It has to reach the list, not just the guesser. */
