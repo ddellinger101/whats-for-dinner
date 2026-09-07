@@ -414,14 +414,13 @@ class PantryTest extends TestCase
     // ------------------------------------------- acting on what is going off
 
     /**
-     * A row carried three 44px tap targets, and the third was an x doing
-     * exactly what "It's gone" in the edit menu already did — two targets and
-     * their gaps for one action, on the screen where the names run longest.
+     * Three, and no more: find a recipe, add to the list, edit. The fourth was
+     * an x doing exactly what "It's gone" in the edit menu already did — two
+     * targets and their gaps for one action, on the screen where names run
+     * longest.
      */
-    public function test_a_pantry_row_carries_only_two_tap_targets(): void
+    public function test_a_pantry_row_carries_three_tap_targets(): void
     {
-        // Long shelf life, so it is not one of the use-these-up rows, which
-        // carry a third icon of their own.
         $flag = $this->inventory->add(
             $this->ingredient('Boneless skinless chicken breasts', IngredientCategory::PantryDry, 300),
             2,
@@ -431,7 +430,7 @@ class PantryTest extends TestCase
         $html = $this->actingAs($this->user)->get(route('pantry'))->assertOk()->getContent();
         $row = Str::between($html, '<li class="px-3 py-2">', '</li>');
 
-        $this->assertSame(2, substr_count($row, 'size-tap'), 'the search and the edit menu, nothing else');
+        $this->assertSame(3, substr_count($row, 'size-tap'), 'search, grocery, edit — nothing else');
 
         // Marking it gone is still one menu away, not gone itself.
         $this->assertStringContainsString(route('pantry.gone', $flag), $row);
@@ -518,19 +517,22 @@ class PantryTest extends TestCase
     }
 
     /**
-     * Every other row keeps it in the edit menu, where it costs the item name
-     * no width.
+     * On every row, not only the ones going off. Waiting until something is
+     * nearly out is how it ends up wanted on a night nobody is shopping.
      */
-    public function test_a_long_lived_row_keeps_the_grocery_action_in_its_menu(): void
+    public function test_every_row_can_add_to_the_grocery_list_not_just_the_urgent_ones(): void
     {
-        $flag = $this->inventory->add($this->ingredient('Rice', IngredientCategory::PantryDry, 300), 2, 'cup');
+        $rice = $this->inventory->add($this->ingredient('Rice', IngredientCategory::PantryDry, 300), 2, 'cup');
+        $cream = $this->inventory->add($this->ingredient('Sour cream', IngredientCategory::Dairy, 2), 1, 'cup');
 
         $html = $this->actingAs($this->user)->get(route('pantry'))->assertOk()->getContent();
-        $row = Str::between($html, '<li class="px-3 py-2">', '</li>');
 
-        $this->assertStringContainsString('Add to grocery list', $row);
-        $this->assertStringContainsString(route('pantry.grocery', $flag), $row);
-        $this->assertSame(2, substr_count($row, 'size-tap'), 'still two icons on the row itself');
+        // One is months off, the other is in the use-these-up section.
+        $this->assertStringContainsString(route('pantry.grocery', $rice), $html);
+        $this->assertStringContainsString(route('pantry.grocery', $cream), $html);
+
+        $this->actingAs($this->user)->post(route('pantry.grocery', $rice))->assertRedirect();
+        $this->assertSame('Rice', GroceryListItem::needed()->firstOrFail()->item_name);
     }
 
     /** Knowing something is going off is only useful if you can act on it. */
