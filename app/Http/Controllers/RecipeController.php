@@ -14,10 +14,10 @@ use App\Models\Recipe;
 use App\Services\Discovery\DiscoveredRecipeImporter;
 use App\Services\InventoryService;
 use App\Services\MealPlanner;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 /**
@@ -277,11 +277,27 @@ class RecipeController extends Controller
      * Spec 3/4.2.5: times_made drives history and last_cooked_on drives the
      * recency deprioritisation, so both move together.
      */
-    public function markCooked(Recipe $recipe): RedirectResponse
+    public function markCooked(Request $request, Recipe $recipe): RedirectResponse
     {
+        $validated = $request->validate([
+            // Marking last night's dinner this morning has to record last
+            // night, or the rotation thinks it was eaten today and the recency
+            // penalty is a day out. The future is refused: a meal not yet
+            // cooked cannot have been.
+            'cooked_on' => ['nullable', 'date', 'before_or_equal:today', 'after:-1 year'],
+        ]);
+
+        $cookedOn = isset($validated['cooked_on'])
+            ? Carbon::parse($validated['cooked_on'])->startOfDay()
+            : Carbon::today();
+
         $recipe->update([
             'times_made' => $recipe->times_made + 1,
-            'last_cooked_on' => Carbon::today(),
+            // Only moved forward. Marking an older meal made should not undo a
+            // more recent cook of the same recipe.
+            'last_cooked_on' => $recipe->last_cooked_on && $recipe->last_cooked_on->gt($cookedOn)
+                ? $recipe->last_cooked_on
+                : $cookedOn,
         ]);
 
         // Cooking it is the other moment the app can observe stock changing.
@@ -289,7 +305,9 @@ class RecipeController extends Controller
         // pantry matches what the grocery list bought for it.
         $servings = MealComponent::query()
             ->where('recipe_id', $recipe->id)
-            ->whereHas('mealPlanEntry', fn ($q) => $q->whereDate('date', '<=', Carbon::today()->toDateString()))
+            // Up to the day it was cooked, not up to today: the amount to take
+            // out of the pantry is what that meal was planned for.
+            ->whereHas('mealPlanEntry', fn ($q) => $q->whereDate('date', '<=', $cookedOn->toDateString()))
             ->latest('created_at')
             ->value('servings_needed');
 

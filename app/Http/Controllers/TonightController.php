@@ -21,13 +21,18 @@ class TonightController extends Controller
             ? Carbon::createFromFormat('Y-m-d', $request->query('date'))->startOfDay()
             : Carbon::today();
 
+        // Breakfast and lunch get the same screen, because the reason to open
+        // it is the same: see what it is, then say it was made so the pantry
+        // knows.
+        $slot = MealSlot::tryFrom((string) $request->query('slot')) ?? MealSlot::Dinner;
+
         $entry = MealPlanEntry::query()
             ->with([
                 'components.recipe.ingredients.inventoryFlag',
                 'components.simpleItem',
             ])
             ->whereDate('date', $date->toDateString())
-            ->where('slot', MealSlot::Dinner->value)
+            ->where('slot', $slot->value)
             ->first();
 
         $primary = $entry?->primaryComponent();
@@ -54,6 +59,13 @@ class TonightController extends Controller
 
         return view('tonight', [
             'date' => $date,
+            'slot' => $slot,
+            'isToday' => $date->isSameDay(Carbon::today()),
+            // Yesterday matters more than tomorrow here: forgetting to mark a
+            // dinner made is something you notice the next morning, and until
+            // now there was no way back to it.
+            'previousDay' => $date->copy()->subDay(),
+            'nextDay' => $date->copy()->addDay(),
             'entry' => $entry,
             'primary' => $primary,
             'recipe' => $recipe,

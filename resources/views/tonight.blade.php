@@ -1,21 +1,65 @@
 @extends('layouts.app')
 
-@section('title', "What's For Dinner")
-@section('heading', "Tonight")
+@section('title', "What's For ".$slot->label())
+@section('heading', "What's For ".$slot->label())
 
 @section('content')
-    <p class="px-1 text-sm text-ink-600">
-        {{ $date->format('l, j F') }} &middot; cooking for {{ $servingsForTonight }}
-    </p>
+    {{-- Any day, not only today. Forgetting to mark a dinner made is something
+         you notice the next morning, and until this there was no way back to
+         it — the ingredients had to be taken out of the pantry by hand. --}}
+    <div class="flex items-center gap-2">
+        <a href="{{ route('tonight', ['date' => $previousDay->toDateString(), 'slot' => $slot->value]) }}"
+           class="grid size-tap shrink-0 place-items-center rounded-xl border border-ink-200 bg-white text-ink-600
+                  transition active:scale-95" aria-label="The day before">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </a>
+
+        <div class="min-w-0 flex-1 text-center">
+            <p class="truncate text-sm font-semibold text-ink-900">
+                {{ $isToday ? 'Today' : $date->format('l, j F') }}
+            </p>
+            <p class="text-xs text-ink-400">
+                {{ $isToday ? $date->format('l, j F') : '' }} cooking for {{ $servingsForTonight }}
+            </p>
+        </div>
+
+        <a href="{{ route('tonight', ['date' => $nextDay->toDateString(), 'slot' => $slot->value]) }}"
+           class="grid size-tap shrink-0 place-items-center rounded-xl border border-ink-200 bg-white text-ink-600
+                  transition active:scale-95" aria-label="The day after">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </a>
+    </div>
+
+    {{-- The three slots of whichever day is showing. --}}
+    <div class="mt-2 flex gap-1.5">
+        @foreach (\App\Enums\MealSlot::ordered() as $option)
+            <a href="{{ route('tonight', ['date' => $date->toDateString(), 'slot' => $option->value]) }}"
+               class="min-h-9 flex-1 rounded-lg px-3 py-1.5 text-center text-sm font-medium transition
+                      {{ $option === $slot
+                          ? 'bg-brand-600 text-white'
+                          : 'border border-ink-200 bg-white text-ink-600 hover:border-brand-400' }}">
+                {{ $option->label() }}
+            </a>
+        @endforeach
+    </div>
+
+    @unless ($isToday)
+        <p class="mt-2 rounded-xl bg-ink-100 px-4 py-2.5 text-sm text-ink-700">
+            Showing {{ $date->format('l, j F') }}. Marking a meal made from here takes its
+            ingredients out of the pantry just the same.
+        </p>
+    @endunless
 
     @if (! $recipe && $extras->isEmpty())
         <div class="mt-4 rounded-2xl border border-dashed border-ink-200 bg-white px-5 py-10 text-center">
             <p class="text-base font-medium text-ink-900">Nothing planned yet</p>
             <p class="mt-1 text-sm text-ink-600">Pick something and it will appear here.</p>
-            <a href="{{ route('plan.picker', ['date' => $date->toDateString(), 'slot' => 'dinner']) }}"
+            <a href="{{ route('plan.picker', ['date' => $date->toDateString(), 'slot' => $slot->value]) }}"
                class="mt-4 inline-flex min-h-tap items-center rounded-xl bg-brand-600 px-5 font-semibold text-white
                       shadow-sm transition hover:bg-brand-700">
-                Choose dinner
+                Choose {{ mb_strtolower($slot->label()) }}
             </a>
         </div>
     @else
@@ -135,10 +179,14 @@
 
                             <form method="POST" action="{{ route('recipes.cooked', $recipe) }}">
                                 @csrf
+                                {{-- The day being shown, not today, so marking
+                                     last night's dinner this morning records
+                                     last night. --}}
+                                <input type="hidden" name="cooked_on" value="{{ $date->toDateString() }}">
                                 <button type="submit"
                                         class="min-h-tap rounded-xl border border-ink-200 bg-white px-4 text-sm
                                                font-medium text-ink-800 transition hover:border-brand-400">
-                                    Mark as made
+                                    {{ $isToday ? 'Mark as made' : 'Mark as made on '.$date->format('j M') }}
                                 </button>
                             </form>
                         </div>

@@ -28,9 +28,22 @@ class HomeController extends Controller
 
         $weekStart = $today->copy()->startOfWeek(Carbon::SUNDAY);
 
+        // What is on today for the two smaller buttons, so the home screen
+        // still answers "what is it?" without a tap.
+        $todaysMeals = MealPlanEntry::query()
+            ->with('components.recipe', 'components.simpleItem')
+            ->whereDate('date', $today->toDateString())
+            ->whereIn('slot', [MealSlot::Breakfast->value, MealSlot::Lunch->value])
+            ->get()
+            ->mapWithKeys(fn (MealPlanEntry $entry) => [
+                $entry->slot->value => $entry->components->map->displayName()->filter()->join(', '),
+            ])
+            ->filter(fn (string $names) => $names !== '');
+
         return view('home', [
             'tonight' => $tonight,
             'today' => $today,
+            'todaysMeals' => $todaysMeals,
             'plannedDinners' => MealPlanEntry::query()
                 ->where('slot', MealSlot::Dinner->value)
                 ->whereBetween('date', [

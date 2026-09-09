@@ -34,6 +34,24 @@
             </div>
         </a>
 
+        {{-- Smaller than dinner, because they are: breakfast and lunch are
+             mostly the same few things week to week. They are here so a meal
+             can be marked made, which is what keeps the pantry honest. --}}
+        <div class="grid grid-cols-2 gap-3">
+            @foreach ([\App\Enums\MealSlot::Breakfast, \App\Enums\MealSlot::Lunch] as $slot)
+                <a href="{{ route('tonight', ['slot' => $slot->value]) }}"
+                   class="block rounded-2xl border border-ink-200 bg-white px-4 py-3 shadow-sm
+                          transition active:scale-[.99]">
+                    <span class="block text-sm font-semibold tracking-tight text-ink-900">
+                        What&rsquo;s For {{ $slot->label() }}
+                    </span>
+                    <span class="mt-0.5 block truncate text-xs text-ink-600">
+                        {{ $todaysMeals[$slot->value] ?? 'Nothing planned' }}
+                    </span>
+                </a>
+            @endforeach
+        </div>
+
         <a href="{{ route('plan') }}"
            class="group block overflow-hidden rounded-2xl border border-ink-200 bg-white p-5 shadow-sm
                   transition active:scale-[.99]">

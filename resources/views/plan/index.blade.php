@@ -39,7 +39,8 @@
                 $dayServings = $scheduled[$day->toDateString()];
             @endphp
 
-            <section class="overflow-hidden rounded-2xl border bg-white shadow-sm
+            <section @if ($isToday) id="today" @endif
+                     class="overflow-hidden rounded-2xl border bg-white shadow-sm
                             {{ $isToday ? 'border-brand-400 ring-1 ring-brand-200' : 'border-ink-200' }}">
                 <header class="flex items-baseline gap-2 border-b border-ink-100 px-4 py-2.5
                                {{ $isToday ? 'bg-brand-50' : 'bg-ink-50/60' }}">
@@ -152,3 +153,28 @@
         @endforeach
     </div>
 @endsection
+
+@push('scripts')
+<script>
+// Open on today rather than on Sunday. Six days of scrolling to reach tonight
+// is the wrong first move on the screen you open to decide tonight.
+//
+// Only when today is in the week being shown: paging back a week and being
+// thrown to a day that is not there would be worse than not scrolling at all.
+(() => {
+    const today = document.getElementById('today');
+    if (!today) return;
+
+    // The header is sticky, so scrolling the card flush to the top puts its
+    // date underneath it.
+    const header = document.querySelector('header');
+    const offset = (header?.offsetHeight ?? 0) + 8;
+
+    const top = today.getBoundingClientRect().top + window.scrollY - offset;
+
+    // Instant, not smooth: this is where the page should have opened, and
+    // animating it makes a correct starting position look like a glitch.
+    window.scrollTo({ top: Math.max(0, top), behavior: 'instant' });
+})();
+</script>
+@endpush
