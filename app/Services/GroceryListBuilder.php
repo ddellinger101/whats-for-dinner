@@ -38,7 +38,7 @@ class GroceryListBuilder
     }
 
     /**
-     * Ingredients scaled per spec 4.3, minus anything already in the freezer.
+     * Ingredients scaled per spec 4.3, minus anything already in the fridge.
      */
     private function addRecipeIngredients(MealComponent $component, Carbon $addedOn): Collection
     {
@@ -52,7 +52,7 @@ class GroceryListBuilder
 
         return $recipe->ingredients
             // Spec 4.6: an ingredient flagged as in stock is skipped here. It is
-            // still shown in the recipe view with a "from freezer" note, which is
+            // still shown in the recipe view with a "from fridge" note, which is
             // a display concern, not a list one.
             //
             // Spice-rack staples are skipped for the same reason but on

@@ -112,7 +112,7 @@
                                     @if ($ingredient['fromStock'])
                                         {{-- Spec 4.6: kept off the grocery list, still shown here. --}}
                                         <span class="shrink-0 rounded bg-ink-100 px-1.5 py-0.5 text-[11px]
-                                                     font-medium text-ink-600">from freezer</span>
+                                                     font-medium text-ink-600">from fridge</span>
                                     @endif
                                 </li>
                             @endforeach
