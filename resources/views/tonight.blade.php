@@ -177,18 +177,29 @@
                                 </form>
                             @endforeach
 
-                            <form method="POST" action="{{ route('recipes.cooked', $recipe) }}">
-                                @csrf
-                                {{-- The day being shown, not today, so marking
-                                     last night's dinner this morning records
-                                     last night. --}}
-                                <input type="hidden" name="cooked_on" value="{{ $date->toDateString() }}">
-                                <button type="submit"
-                                        class="min-h-tap rounded-xl border border-ink-200 bg-white px-4 text-sm
-                                               font-medium text-ink-800 transition hover:border-brand-400">
-                                    {{ $isToday ? 'Mark as made' : 'Mark as made on '.$date->format('j M') }}
-                                </button>
-                            </form>
+                            {{-- Posted against the component, not the recipe:
+                                 the component knows the servings this meal was
+                                 planned for, and it is what carries the "made"
+                                 mark so the pantry is not drawn down twice. --}}
+                            @if ($primary->wasMade())
+                                <span class="inline-flex min-h-tap items-center rounded-xl bg-ink-100 px-4 text-sm
+                                             font-medium text-ink-500">
+                                    Made {{ $primary->made_at->diffForHumans() }}
+                                </span>
+                            @else
+                                <form method="POST" action="{{ route('plan.component.made', $primary) }}">
+                                    @csrf
+                                    {{-- The day being shown, not today, so marking
+                                         last night's dinner this morning records
+                                         last night. --}}
+                                    <input type="hidden" name="cooked_on" value="{{ $date->toDateString() }}">
+                                    <button type="submit"
+                                            class="min-h-tap rounded-xl border border-ink-200 bg-white px-4 text-sm
+                                                   font-medium text-ink-800 transition hover:border-brand-400">
+                                        {{ $isToday ? 'Mark as made' : 'Mark as made on '.$date->format('j M') }}
+                                    </button>
+                                </form>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -198,10 +209,34 @@
         @if ($extras->isNotEmpty())
             <section class="mt-3 rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
                 <h2 class="text-sm font-semibold text-ink-900">{{ $recipe ? 'With' : 'On the table' }}</h2>
-                <ul class="mt-2 flex flex-wrap gap-2">
+                {{-- Each of these can be marked made on its own. A lunch is
+                     three sandwiches, and only the main dish had a way to say
+                     it was eaten, so breakfast and lunch could never draw the
+                     pantry down. --}}
+                <ul class="mt-2 divide-y divide-ink-100 border-y border-ink-100">
                     @foreach ($extras as $extra)
-                        <li class="rounded-lg bg-ink-100 px-3 py-1.5 text-sm text-ink-800">
-                            {{ $extra->displayName() }}
+                        <li class="flex items-center gap-3 py-2">
+                            <span class="min-w-0 flex-1 text-sm
+                                         {{ $extra->wasMade() ? 'text-ink-400 line-through' : 'text-ink-800' }}">
+                                {{ $extra->displayName() }}
+                            </span>
+
+                            @if ($extra->wasMade())
+                                <span class="shrink-0 rounded bg-ink-100 px-2 py-0.5 text-[11px] font-medium text-ink-500">
+                                    made
+                                </span>
+                            @else
+                                <form method="POST" action="{{ route('plan.component.made', $extra) }}"
+                                      class="shrink-0">
+                                    @csrf
+                                    <input type="hidden" name="cooked_on" value="{{ $date->toDateString() }}">
+                                    <button type="submit"
+                                            class="min-h-9 rounded-lg border border-ink-200 bg-white px-3 text-xs
+                                                   font-medium text-ink-800 transition hover:border-brand-400">
+                                        Made it
+                                    </button>
+                                </form>
+                            @endif
                         </li>
                     @endforeach
                 </ul>

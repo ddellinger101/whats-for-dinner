@@ -11,6 +11,7 @@ use App\Models\MealPlanEntry;
 use App\Models\Recipe;
 use App\Models\SimpleItem;
 use App\Services\HouseholdSizeResolver;
+use App\Services\InventoryService;
 use App\Services\MealPlanner;
 use App\Services\RecipeSuggestionRanker;
 use Illuminate\Http\RedirectResponse;
@@ -158,6 +159,57 @@ class MealPlanController extends Controller
             ))
             ->take(20)
             ->values();
+    }
+
+    /**
+     * A planned meal was eaten, so take it out of the pantry.
+     *
+     * Per component rather than per recipe, because that is what is on the
+     * plate: a lunch is three sandwiches, each its own component, and only the
+     * primary one had a way to be marked. Everything else on the table was a
+     * label you could not act on, which is why breakfast and lunch could never
+     * draw the pantry down.
+     */
+    public function markMade(Request $request, MealComponent $component): RedirectResponse
+    {
+        $validated = $request->validate([
+            'cooked_on' => ['nullable', 'date', 'before_or_equal:today', 'after:-1 year'],
+        ]);
+
+        if ($component->wasMade()) {
+            return back()->with('status', $component->displayName().' was already marked made.');
+        }
+
+        $cookedOn = isset($validated['cooked_on'])
+            ? Carbon::parse($validated['cooked_on'])->startOfDay()
+            : Carbon::today();
+
+        $inventory = new InventoryService;
+
+        if ($recipe = $component->recipe) {
+            $recipe->update([
+                'times_made' => $recipe->times_made + 1,
+                // Only forward, so marking an older meal does not undo a more
+                // recent cook of the same recipe.
+                'last_cooked_on' => $recipe->last_cooked_on && $recipe->last_cooked_on->gt($cookedOn)
+                    ? $recipe->last_cooked_on
+                    : $cookedOn,
+            ]);
+
+            $touched = $inventory->consumeForRecipe($recipe, $component->servings_needed);
+        } else {
+            $touched = $component->simpleItem
+                ? $inventory->consumeForSimpleItem($component->simpleItem)
+                : 0;
+        }
+
+        // Recorded whether or not anything came out of the pantry, since the
+        // question it answers is "did I already tick this?".
+        $component->update(['made_at' => now()]);
+
+        return back()->with('status', $touched > 0
+            ? "Marked {$component->displayName()} as made, and took its ingredients out of the pantry."
+            : "Marked {$component->displayName()} as made.");
     }
 
     public function setPrimary(Request $request, string $date, string $slot): RedirectResponse

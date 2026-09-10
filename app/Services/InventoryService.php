@@ -6,6 +6,8 @@ use App\Models\GroceryListItem;
 use App\Models\Ingredient;
 use App\Models\InventoryFlag;
 use App\Models\Recipe;
+use App\Models\SimpleItem;
+use App\Support\IngredientLine;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -153,6 +155,47 @@ class InventoryService
                 $touched++;
             }
         });
+
+        return $touched;
+    }
+
+    /**
+     * A simple item was eaten, so take its parts out of the pantry.
+     *
+     * Only what is already there is touched. A breakdown line is free text
+     * someone typed once — "1 banana" — and creating an ingredient row just to
+     * consume it would fill the archive with things nobody has.
+     *
+     * The amount is not guessed at. A simple item never carried one, and two
+     * omelettes are not two eggs; recording use without a number is the honest
+     * answer and leaves the figure for a human to correct.
+     */
+    public function consumeForSimpleItem(SimpleItem $item): int
+    {
+        $touched = 0;
+
+        foreach ($item->groceryLines() as $line) {
+            $name = IngredientLine::parse($line)->name;
+
+            if ($name === '') {
+                continue;
+            }
+
+            $ingredient = $this->ingredients->find($name);
+
+            if (! $ingredient) {
+                continue;
+            }
+
+            $flag = InventoryFlag::where('ingredient_id', $ingredient->id)->inStock()->first();
+
+            if (! $flag || $ingredient->isStaple()) {
+                continue;
+            }
+
+            $flag->consume(null);
+            $touched++;
+        }
 
         return $touched;
     }

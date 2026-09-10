@@ -15,7 +15,7 @@ class MealComponent extends Model
 
     protected $fillable = [
         'meal_plan_entry_id', 'component_type', 'recipe_id',
-        'simple_item_id', 'is_primary', 'servings_needed',
+        'simple_item_id', 'is_primary', 'servings_needed', 'made_at',
     ];
 
     protected function casts(): array
@@ -24,7 +24,13 @@ class MealComponent extends Model
             'component_type' => ComponentType::class,
             'is_primary' => 'boolean',
             'servings_needed' => 'integer',
+            'made_at' => 'datetime',
         ];
+    }
+
+    public function wasMade(): bool
+    {
+        return $this->made_at !== null;
     }
 
     public function mealPlanEntry(): BelongsTo

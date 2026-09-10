@@ -138,6 +138,112 @@ class MealHistoryTest extends TestCase
             ->assertSee(e(route('tonight', ['date' => '2026-09-10', 'slot' => 'dinner'])), false);
     }
 
+    // ------------------------------------------------- every component
+
+    /**
+     * The complaint: a lunch is three sandwiches, each its own component, and
+     * only the main dish had a way to say it was eaten. Everything else on the
+     * table was a label you could not act on, so breakfast and lunch could
+     * never draw the pantry down.
+     */
+    public function test_a_side_can_be_marked_made_and_empties_the_pantry(): void
+    {
+        $sandwich = $this->recipe('Turkey Sandwich');
+        $component = (new MealPlanner)->addSide(
+            Carbon::parse(self::TODAY),
+            MealSlot::Lunch,
+            $sandwich,
+        );
+
+        $this->assertFalse($component->is_primary, 'a side, which is the case that was broken');
+
+        $lettuce = $sandwich->ingredients->first();
+        (new InventoryService)->add($lettuce, 10, 'cup');
+
+        $this->actingAs($this->user)
+            ->get(route('tonight', ['slot' => 'lunch']))
+            ->assertOk()
+            ->assertSee('Made it');
+
+        $this->actingAs($this->user)
+            ->post(route('plan.component.made', $component), ['cooked_on' => self::TODAY])
+            ->assertRedirect();
+
+        $this->assertNotNull($component->fresh()->made_at);
+        $this->assertSame(1, $sandwich->fresh()->times_made);
+        $this->assertEqualsWithDelta(
+            6.0,
+            (float) InventoryFlag::where('ingredient_id', $lettuce->id)->value('quantity'),
+            0.001,
+        );
+    }
+
+    /** Ticking twice must not take the ingredients out twice. */
+    public function test_marking_made_twice_does_not_empty_the_pantry_twice(): void
+    {
+        $sandwich = $this->recipe('Turkey Sandwich');
+        $component = (new MealPlanner)->addSide(Carbon::parse(self::TODAY), MealSlot::Lunch, $sandwich);
+
+        $lettuce = $sandwich->ingredients->first();
+        (new InventoryService)->add($lettuce, 10, 'cup');
+
+        $this->actingAs($this->user)->post(route('plan.component.made', $component));
+        $this->actingAs($this->user)->post(route('plan.component.made', $component))
+            ->assertSessionHas('status', fn (string $s) => str_contains($s, 'already marked made'));
+
+        $this->assertSame(1, $sandwich->fresh()->times_made);
+        $this->assertEqualsWithDelta(
+            6.0,
+            (float) InventoryFlag::where('ingredient_id', $lettuce->id)->value('quantity'),
+            0.001,
+        );
+    }
+
+    /**
+     * A simple item never carried an amount, so use is recorded without one.
+     * Two omelettes are not two eggs, and guessing would be worse than saying
+     * nothing.
+     */
+    public function test_a_simple_item_records_use_without_inventing_an_amount(): void
+    {
+        $eggs = Ingredient::create([
+            'name' => 'Eggs',
+            'category' => IngredientCategory::Dairy,
+            'shelf_life_days' => 21,
+        ]);
+        (new InventoryService)->add($eggs, 12, null);
+
+        $omelette = SimpleItem::create(['name' => 'Omelette', 'grocery_breakdown' => ['Eggs']]);
+        $component = (new MealPlanner)->addSide(Carbon::parse(self::TODAY), MealSlot::Breakfast, $omelette);
+
+        $this->actingAs($this->user)
+            ->post(route('plan.component.made', $component))
+            ->assertRedirect();
+
+        $this->assertNotNull($component->fresh()->made_at);
+
+        // Still there, still twelve: the app does not know how many an omelette
+        // takes, and it does not pretend to.
+        $flag = InventoryFlag::where('ingredient_id', $eggs->id)->firstOrFail();
+        $this->assertTrue($flag->has_stock);
+        $this->assertEqualsWithDelta(12.0, (float) $flag->quantity, 0.001);
+        $this->assertNotNull($flag->last_updated);
+    }
+
+    /** Nothing is invented for a breakdown line the pantry has never seen. */
+    public function test_a_simple_item_does_not_create_ingredients_to_consume(): void
+    {
+        $item = SimpleItem::create(['name' => 'Snack', 'grocery_breakdown' => ['1 banana']]);
+        $component = (new MealPlanner)->addSide(Carbon::parse(self::TODAY), MealSlot::Breakfast, $item);
+
+        $before = Ingredient::count();
+
+        $this->actingAs($this->user)->post(route('plan.component.made', $component))->assertRedirect();
+
+        $this->assertSame($before, Ingredient::count());
+        $this->assertNotNull($component->fresh()->made_at);
+    }
+
     // --------------------------------------------------------- the slots
 
     public function test_breakfast_and_lunch_have_the_same_screen(): void

@@ -65,6 +65,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/plan/{date}/{slot}/primary', [MealPlanController::class, 'setPrimary'])->name('plan.primary');
     Route::post('/plan/{date}/{slot}/side', [MealPlanController::class, 'addSide'])->name('plan.side');
     Route::post('/plan/{date}/{slot}/servings', [MealPlanController::class, 'setServings'])->name('plan.servings');
+    Route::post('/plan/component/{component}/made', [MealPlanController::class, 'markMade'])->name('plan.component.made');
     Route::delete('/plan/component/{component}', [MealPlanController::class, 'removeComponent'])->name('plan.component.remove');
 
     // Spec 4.5: the simple-item library and its one-time breakdown prompt.
