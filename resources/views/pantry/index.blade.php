@@ -99,21 +99,40 @@
         </details>
     @endif
 
+    {{-- Open when something went in the last day or so. Cooking empties things
+         wholesale, and the evening it happened is exactly when you know there
+         is still half a bunch of coriander left — not later, and not from a
+         fold-out at the bottom of the screen nobody opens. --}}
     @if ($recentlyUsed->isNotEmpty())
-        <details class="mt-6">
+        <details class="mt-6" @if ($recentlyUsedIsFresh) open @endif>
             <summary class="cursor-pointer list-none px-1 text-xs font-semibold uppercase tracking-wide text-ink-400">
                 Recently used up &middot; {{ $recentlyUsed->count() }}
             </summary>
-            <ul class="mt-1.5 divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-200 bg-white/60">
+            <p class="mt-1 px-1 text-xs text-ink-400">
+                Cooking takes the whole amount out. If some is left, say how much and it goes back.
+            </p>
+            <ul class="mt-1.5 divide-y divide-ink-100 rounded-2xl border border-ink-200 bg-white/60">
                 @foreach ($recentlyUsed as $flag)
-                    <li class="flex items-center gap-3 px-3 py-2">
-                        <span class="min-w-0 flex-1 truncate text-sm text-ink-400">{{ $flag->ingredient->name }}</span>
-                        <form method="POST" action="{{ route('pantry.restock', $flag) }}" class="shrink-0">
+                    <li class="px-3 py-2">
+                        <form method="POST" action="{{ route('pantry.restock', $flag) }}"
+                              class="flex items-center gap-2">
                             @csrf
+                            <span class="min-w-0 flex-1 truncate text-sm text-ink-500">
+                                {{ $flag->ingredient->name }}
+                            </span>
+                            {{-- Blank puts it back as "some, amount unknown",
+                                 which is the honest answer most of the time and
+                                 keeps this a one-tap action. --}}
+                            <input type="text" name="quantity" inputmode="decimal" placeholder="amount"
+                                   class="min-h-9 w-16 shrink-0 rounded-lg border border-ink-200 px-2 text-sm
+                                          outline-none focus:border-brand-500">
+                            <input type="text" name="unit" value="{{ $flag->unit }}" placeholder="unit" maxlength="20"
+                                   class="min-h-9 w-16 shrink-0 rounded-lg border border-ink-200 px-2 text-sm
+                                          outline-none focus:border-brand-500">
                             <button type="submit"
-                                    class="min-h-9 rounded-lg px-3 text-xs font-medium text-brand-600
+                                    class="min-h-9 shrink-0 rounded-lg px-3 text-xs font-medium text-brand-600
                                            transition hover:bg-brand-50">
-                                Got some again
+                                Put back
                             </button>
                         </form>
                     </li>

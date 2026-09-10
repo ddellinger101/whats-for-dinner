@@ -40,6 +40,15 @@ class PantryController extends Controller
 
         $atRiskIds = $this->inventory->atRiskIngredientIds($today)->all();
 
+        $recentlyUsed = InventoryFlag::query()
+            ->with('ingredient')
+            ->where('has_stock', false)
+            ->whereNotNull('last_updated')
+            ->latest('last_updated')
+            ->limit(12)
+            ->get()
+            ->filter(fn (InventoryFlag $flag) => $flag->ingredient !== null);
+
         // The spice rack is listed on its own rather than scattered through
         // the categories. Forty jars would otherwise bury the dozen things
         // that actually change week to week, and none of them need the
@@ -68,14 +77,14 @@ class PantryController extends Controller
             'categories' => collect(IngredientCategory::cases())->keyBy->value,
             'total' => $inStock->count(),
             'today' => $today,
-            'recentlyUsed' => InventoryFlag::query()
-                ->with('ingredient')
-                ->where('has_stock', false)
-                ->whereNotNull('last_updated')
-                ->latest('last_updated')
-                ->limit(12)
-                ->get()
-                ->filter(fn (InventoryFlag $flag) => $flag->ingredient !== null),
+            'recentlyUsed' => $recentlyUsed,
+            // Open when something went in the last day or so. Cooking empties
+            // things wholesale, and the moment to say "there is still half a
+            // bunch of coriander" is the evening it happened — not a fold-out
+            // at the bottom of the screen nobody opens.
+            'recentlyUsedIsFresh' => $recentlyUsed->contains(
+                fn (InventoryFlag $flag) => $flag->last_updated?->gt(now()->subDay()),
+            ),
         ]);
     }
 
@@ -178,15 +187,27 @@ class PantryController extends Controller
      * Put something back that was marked gone by mistake, or restock it without
      * going via the grocery list.
      */
-    public function restock(InventoryFlag $flag): RedirectResponse
+    public function restock(Request $request, InventoryFlag $flag): RedirectResponse
     {
+        $validated = $request->validate([
+            // Cooking takes the whole amount out, which is right often enough
+            // to be the default and wrong often enough to need saying: half a
+            // bunch of coriander survives most recipes that call for it.
+            'quantity' => ['nullable', 'numeric', 'min:0', 'max:10000'],
+            'unit' => ['nullable', 'string', 'max:20'],
+        ]);
+
         $ingredient = $flag->ingredient;
 
         if (! $ingredient) {
             return back()->withErrors(['flag' => 'That ingredient no longer exists.']);
         }
 
-        $this->inventory->add($ingredient, null, $flag->unit);
+        $this->inventory->add(
+            $ingredient,
+            $validated['quantity'] ?? null,
+            $validated['unit'] ?? $flag->unit,
+        );
 
         return back()->with('status', "{$ingredient->name} is back in the pantry.");
     }

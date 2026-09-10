@@ -39,8 +39,13 @@ class RecipeController extends Controller
             ? Ingredient::find($request->query('ingredient'))
             : null;
 
+        // The star on a card is the household's own verdict, and it was the one
+        // thing the archive could show but not filter by.
+        $loved = $request->boolean('loved');
+
         $recipes = Recipe::query()
             ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
+            ->when($loved, fn ($q) => $q->where('rating', Rating::ThumbsUp->value))
             ->when($protein, fn ($q) => $q->where('protein_type', $protein))
             ->when($tag, fn ($q) => $q->whereJsonContains('category_tags', $tag))
             ->when($ingredient, fn ($q) => $q->whereHas(
@@ -57,6 +62,8 @@ class RecipeController extends Controller
             'search' => $search,
             'protein' => $protein,
             'tag' => $tag,
+            'loved' => $loved,
+            'lovedCount' => Recipe::where('rating', Rating::ThumbsUp->value)->count(),
             'ingredient' => $ingredient,
             'proteins' => ProteinType::cases(),
             'tags' => CategoryTag::cases(),

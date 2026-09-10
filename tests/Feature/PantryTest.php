@@ -557,6 +557,59 @@ class PantryTest extends TestCase
         );
     }
 
+    /**
+     * Cooking takes the whole amount out, which is right often enough to be
+     * the default and wrong often enough to need saying: half a bunch of
+     * coriander survives most recipes that call for it.
+     */
+    public function test_something_used_up_can_go_back_in_a_smaller_amount(): void
+    {
+        $cilantro = $this->ingredient('Fresh cilantro', IngredientCategory::Produce, 6);
+        $flag = $this->inventory->add($cilantro, 1, 'bunch');
+        $this->inventory->markGone($flag);
+
+        $response = $this->actingAs($this->user)->get(route('pantry'))->assertOk();
+
+        // Open, not folded away: the evening it happened is when you know.
+        $response->assertSee('Recently used up')
+            ->assertViewHas('recentlyUsedIsFresh', true)
+            ->assertSee('Fresh cilantro');
+
+        $this->actingAs($this->user)
+            ->post(route('pantry.restock', $flag), ['quantity' => 0.25, 'unit' => 'bunch'])
+            ->assertRedirect();
+
+        $flag->refresh();
+        $this->assertTrue($flag->has_stock);
+        $this->assertEqualsWithDelta(0.25, (float) $flag->quantity, 0.001);
+        $this->assertSame('bunch', $flag->unit);
+    }
+
+    /** Blank stays a one-tap action, and "some, amount unknown" is honest. */
+    public function test_putting_it_back_without_an_amount_still_works(): void
+    {
+        $flag = $this->inventory->add($this->ingredient('Parsley', IngredientCategory::Produce, 6), 1, 'bunch');
+        $this->inventory->markGone($flag);
+
+        $this->actingAs($this->user)->post(route('pantry.restock', $flag))->assertRedirect();
+
+        $this->assertTrue($flag->fresh()->has_stock);
+        $this->assertNull($flag->fresh()->quantity);
+    }
+
+    /** Nothing used up lately, so it stays folded away. */
+    public function test_an_old_use_up_does_not_open_the_section(): void
+    {
+        $flag = $this->inventory->add($this->ingredient('Dill', IngredientCategory::Produce, 6), 1, 'bunch');
+        $this->inventory->markGone($flag);
+        $flag->update(['last_updated' => Carbon::now()->subDays(5)]);
+
+        $this->actingAs($this->user)->get(route('pantry'))
+            ->assertOk()
+            ->assertSee('Recently used up')
+            ->assertViewHas('recentlyUsedIsFresh', false);
+    }
+
     /** Knowing something is going off is only useful if you can act on it. */
     public function test_each_pantry_item_offers_a_recipe_search(): void
     {
@@ -572,6 +625,45 @@ class PantryTest extends TestCase
      * Matched on the ingredient row rather than on its name, so the search
      * lines up with what the pantry and the use-by windows are keyed on.
      */
+    /**
+     * The star on a card is the household's own verdict, and it was the one
+     * thing the archive could show but not filter by.
+     */
+    public function test_the_archive_can_be_narrowed_to_the_starred_ones(): void
+    {
+        $loved = $this->recipeWith('Chicken Piccata', []);
+        $loved->update(['rating' => Rating::ThumbsUp]);
+        $this->recipeWith('Weeknight Pasta', []);
+
+        $response = $this->actingAs($this->user)
+            ->get(route('recipes', ['loved' => 1]))
+            ->assertOk();
+
+        $this->assertSame(['Chicken Piccata'], $response->viewData('recipes')->pluck('name')->all());
+
+        // The chip is only offered when there is something to filter to.
+        $this->actingAs($this->user)->get(route('recipes'))
+            ->assertOk()
+            ->assertSee('Loved')
+            ->assertSee('Weeknight Pasta');
+    }
+
+    /** Narrowing by star keeps whatever else was already narrowing. */
+    public function test_the_starred_filter_combines_with_the_others(): void
+    {
+        $loved = $this->recipeWith('Chicken Piccata', []);
+        $loved->update(['rating' => Rating::ThumbsUp, 'protein_type' => ProteinType::Chicken]);
+
+        $beef = $this->recipeWith('Beef Stew', []);
+        $beef->update(['rating' => Rating::ThumbsUp]);
+
+        $response = $this->actingAs($this->user)
+            ->get(route('recipes', ['loved' => 1, 'protein' => ProteinType::Chicken->value]))
+            ->assertOk();
+
+        $this->assertSame(['Chicken Piccata'], $response->viewData('recipes')->pluck('name')->all());
+    }
+
     public function test_recipes_can_be_filtered_to_one_ingredient(): void
     {
         $usesIt = $this->recipeWith('Sour Cream Bake', ['Sour cream' => 0.25]);

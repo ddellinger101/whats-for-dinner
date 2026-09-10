@@ -16,7 +16,11 @@
     @php
         // Carried through every filter link, so narrowing by protein does not
         // silently drop the ingredient you came here to use up.
-        $keep = array_filter(['q' => $search ?: null, 'ingredient' => $ingredient?->id]);
+        $keep = array_filter([
+            'q' => $search ?: null,
+            'ingredient' => $ingredient?->id,
+            'loved' => $loved ? 1 : null,
+        ]);
     @endphp
 
     @if ($ingredient)
@@ -42,11 +46,25 @@
         {{-- Filters keep the current search, so narrowing never loses it. --}}
         <div class="-mx-4 mt-3 overflow-x-auto px-4 pb-1">
             <div class="flex w-max gap-2">
-                <a href="{{ route('recipes', $keep) }}"
+                <a href="{{ route('recipes', array_diff_key($keep, ['loved' => null])) }}"
                    class="min-h-9 rounded-full border px-3.5 py-1.5 text-sm font-medium transition
-                          {{ ! $protein && ! $tag ? 'border-brand-600 bg-brand-600 text-white' : 'border-ink-200 bg-white text-ink-600' }}">
+                          {{ ! $protein && ! $tag && ! $loved ? 'border-brand-600 bg-brand-600 text-white' : 'border-ink-200 bg-white text-ink-600' }}">
                     All
                 </a>
+
+                {{-- The star on a card was the household's own verdict and the
+                     one thing the archive could show but not filter by. It sits
+                     first because "what do we actually like?" is the commonest
+                     question asked of a hundred and fifty recipes. --}}
+                @if ($lovedCount > 0)
+                    <a href="{{ route('recipes', $loved
+                                  ? array_diff_key($keep, ['loved' => null]) + array_filter(['protein' => $protein, 'tag' => $tag])
+                                  : $keep + array_filter(['protein' => $protein, 'tag' => $tag, 'loved' => 1])) }}"
+                       class="min-h-9 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition
+                              {{ $loved ? 'border-brand-600 bg-brand-600 text-white' : 'border-ink-200 bg-white text-ink-600' }}">
+                        &#9733; Loved &middot; {{ $lovedCount }}
+                    </a>
+                @endif
                 @foreach ($proteins as $option)
                     <a href="{{ route('recipes', $keep + ['protein' => $option->value]) }}"
                        class="min-h-9 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition
