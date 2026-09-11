@@ -25,7 +25,10 @@ enum IngredientCategory: string
     public function label(): string
     {
         return match ($this) {
-            self::Protein => 'Protein',
+            // The label, not the case: "protein" is what the shelf-life rules
+            // and the rotation call this, and renaming the case would mean a
+            // migration for a word on a screen.
+            self::Protein => 'Meats',
             self::Dairy => 'Dairy',
             self::Produce => 'Produce',
             self::PantryDry => 'Pantry / dry goods',
