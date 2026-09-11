@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -137,14 +138,50 @@ class PantryController extends Controller
             'quantity' => ['nullable', 'numeric', 'min:0', 'max:10000'],
             'unit' => ['nullable', 'string', 'max:20'],
             'expires_on' => ['nullable', 'date'],
+            'category' => ['nullable', 'string', Rule::enum(IngredientCategory::class)],
+            'never_expires' => ['nullable', 'boolean'],
         ]);
+
+        $neverExpires = $request->boolean('never_expires');
+
+        // Kept on the ingredient, so it means something about milk rather than
+        // about this carton. Otherwise the next shop puts the date straight
+        // back and it has to be cleared again every week.
+        if ($flag->ingredient && $flag->ingredient->tracks_expiry === $neverExpires) {
+            $flag->ingredient->update(['tracks_expiry' => ! $neverExpires]);
+        }
+
+        // A guess made from a name, and a name only says so much: a tin of
+        // beans and a bag of them read alike. Corrected here rather than left
+        // wrong because nobody can reach it.
+        //
+        // The shelf life follows, since it is the category's, but the use-by
+        // date already on this row does not: that was either read off a packet
+        // or deliberately left empty, and neither is the category's business.
+        if (isset($validated['category']) && $flag->ingredient) {
+            $category = IngredientCategory::from($validated['category']);
+
+            if ($flag->ingredient->category !== $category) {
+                $flag->ingredient->update([
+                    'category' => $category,
+                    'shelf_life_days' => $category->defaultShelfLifeDays(),
+                ]);
+            }
+        }
 
         $quantity = $validated['quantity'] ?? null;
 
         $flag->update([
             'quantity' => $quantity,
             'unit' => $validated['unit'] ?? $flag->unit,
-            'expires_on' => $validated['expires_on'] ?? $flag->expires_on,
+            // array_key_exists, not ??: an emptied date field means "clear
+            // it", and falling back to the current value made the field
+            // one-way — you could set a date but never take one off.
+            'expires_on' => match (true) {
+                $neverExpires => null,
+                array_key_exists('expires_on', $validated) => $validated['expires_on'],
+                default => $flag->expires_on,
+            },
             // Setting it to zero by hand is the same statement as "it's gone".
             'has_stock' => $quantity === null || (float) $quantity > 0,
             'last_updated' => now(),

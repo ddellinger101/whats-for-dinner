@@ -15,11 +15,12 @@ class Ingredient extends Model
 {
     use HasFactory, HasUuids;
 
-    protected $fillable = ['name', 'category', 'shelf_life_days', 'default_unit', 'is_staple'];
+    protected $fillable = ['name', 'category', 'shelf_life_days', 'default_unit', 'is_staple', 'tracks_expiry'];
 
     // Read back on a freshly created model, which a database default is not.
     protected $attributes = [
         'is_staple' => false,
+        'tracks_expiry' => true,
     ];
 
     protected function casts(): array
@@ -28,6 +29,7 @@ class Ingredient extends Model
             'category' => IngredientCategory::class,
             'shelf_life_days' => 'integer',
             'is_staple' => 'boolean',
+            'tracks_expiry' => 'boolean',
         ];
     }
 
@@ -72,6 +74,18 @@ class Ingredient extends Model
     public function isStaple(): bool
     {
         return (bool) $this->is_staple;
+    }
+
+    /**
+     * Whether a use-by date is worth keeping for this at all.
+     *
+     * Bread, milk and eggs are perishable in the abstract and never actually
+     * go off here — they are eaten first. A date on them is a weekly false
+     * alarm in the one list that has to stay worth reading.
+     */
+    public function tracksExpiry(): bool
+    {
+        return ! $this->isStaple() && (bool) $this->tracks_expiry;
     }
 
     /**

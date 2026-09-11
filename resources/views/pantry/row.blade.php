@@ -8,6 +8,15 @@
         <div class="min-w-0 flex-1">
             <p class="truncate text-sm font-medium text-ink-900">{{ $flag->ingredient->name }}</p>
             <p class="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-ink-400">
+                {{-- Only on the use-these-up rows. Everywhere else the section
+                     heading above says it already; here the list is pulled out
+                     of its sections and, once it runs past a few items, "where
+                     do I even look for this?" becomes the question. --}}
+                @if ($urgent)
+                    <span class="rounded bg-ink-100 px-1.5 py-0.5 font-medium text-ink-500">
+                        {{ $flag->ingredient->category->label() }}
+                    </span>
+                @endif
                 <span>{{ $flag->amountLabel() }}</span>
                 @if ($days !== null)
                     <span class="{{ $expired ? 'font-medium text-red-600' : ($urgent ? 'font-medium text-leaf-600' : '') }}">
@@ -91,6 +100,38 @@
                                value="{{ $flag->expires_on?->toDateString() }}"
                                class="mt-1 block min-h-9 w-full rounded-lg border border-ink-200 px-2 text-sm
                                       outline-none focus:border-brand-500">
+                    </label>
+
+                    {{-- A checkbox rather than leaving the date field empty:
+                         clearing a date input on a phone is fiddly, and this
+                         has to say something about the ingredient anyway. Bread
+                         and milk are perishable in the abstract and never
+                         actually go off here — they get eaten first — so a date
+                         on them is a weekly false alarm. --}}
+                    <label class="flex items-center gap-2 text-xs text-ink-600">
+                        <input type="hidden" name="never_expires" value="0">
+                        <input type="checkbox" name="never_expires" value="1"
+                               @checked(! $flag->ingredient->tracksExpiry())
+                               class="size-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500">
+                        Never goes off here
+                    </label>
+
+                    {{-- The category is a guess made from the name, and a name
+                         only says so much: a tin of beans and a bag of them
+                         read alike. Correcting it here beats it staying wrong
+                         because nobody can reach it. --}}
+                    <label class="block text-xs text-ink-600">
+                        Section
+                        <select name="category"
+                                class="mt-1 block min-h-9 w-full rounded-lg border border-ink-200 px-2 text-sm
+                                       outline-none focus:border-brand-500">
+                            @foreach (\App\Enums\IngredientCategory::cases() as $option)
+                                <option value="{{ $option->value }}"
+                                        @selected($flag->ingredient->category === $option)>
+                                    {{ $option->label() }}
+                                </option>
+                            @endforeach
+                        </select>
                     </label>
                     <button type="submit"
                             class="min-h-9 w-full rounded-lg bg-brand-600 px-3 text-sm font-semibold text-white

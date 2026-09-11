@@ -74,9 +74,12 @@ class InventoryService
                 'quantity' => $quantity,
                 'unit' => $item->unit ?? $existing?->unit ?? $ingredient->default_unit,
                 'acquired_on' => $on,
-                'expires_on' => $ingredient->isStaple()
-                    ? null
-                    : $on->copy()->addDays($ingredient->shelf_life_days),
+                // Nothing for the spice rack, and nothing for the things this
+                // house always eats before they turn. Re-buying must not put a
+                // date back on what was deliberately cleared.
+                'expires_on' => $ingredient->tracksExpiry()
+                    ? $on->copy()->addDays($ingredient->shelf_life_days)
+                    : null,
                 'last_updated' => now(),
             ],
         );
@@ -242,10 +245,11 @@ class InventoryService
                 'unit' => $unit ?? $ingredient->default_unit,
                 'acquired_on' => $acquiredOn,
                 // The user's words: these won't expire. A date here would put
-                // the spice rack in the "use these up" list.
-                'expires_on' => $ingredient->isStaple()
-                    ? null
-                    : $acquiredOn->copy()->addDays($ingredient->shelf_life_days),
+                // the spice rack in the "use these up" list — and the same
+                // goes for anything marked as never going off.
+                'expires_on' => $ingredient->tracksExpiry()
+                    ? $acquiredOn->copy()->addDays($ingredient->shelf_life_days)
+                    : null,
                 'note' => $note,
                 'last_updated' => now(),
             ],

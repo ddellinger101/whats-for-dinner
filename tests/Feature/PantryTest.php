@@ -610,6 +610,126 @@ class PantryTest extends TestCase
             ->assertViewHas('recentlyUsedIsFresh', false);
     }
 
+    /**
+     * The category is a guess made from a name, and a name only says so much:
+     * a tin of beans and a bag of them read alike.
+     */
+    public function test_a_category_can_be_corrected_from_the_pantry(): void
+    {
+        $beans = $this->ingredient('Garbanzo beans', IngredientCategory::PantryDry, 365);
+        $flag = $this->inventory->add($beans, 2, 'can');
+        $flag->update(['expires_on' => null]);
+
+        $this->actingAs($this->user)->get(route('pantry'))
+            ->assertOk()
+            ->assertSee('Jarred &amp; canned', false);
+
+        $this->actingAs($this->user)
+            ->post(route('pantry.update', $flag), [
+                'category' => IngredientCategory::JarredCanned->value,
+                'quantity' => 2,
+                'unit' => 'can',
+            ])
+            ->assertRedirect();
+
+        $beans->refresh();
+        $this->assertSame(IngredientCategory::JarredCanned, $beans->category);
+        // The shelf life follows, since it is the category's.
+        $this->assertSame(IngredientCategory::JarredCanned->defaultShelfLifeDays(), $beans->shelf_life_days);
+        // The date on this row does not: it was deliberately left empty.
+        $this->assertNull($flag->fresh()->expires_on);
+    }
+
+    /**
+     * Bread and milk are perishable in the abstract and never actually go off
+     * here — they get eaten first. A date on them is a weekly false alarm in
+     * the one list that has to stay worth reading.
+     */
+    public function test_a_date_can_be_taken_off_for_good(): void
+    {
+        $milk = $this->ingredient('Milk', IngredientCategory::Dairy, 12);
+        $flag = $this->inventory->add($milk, 1, 'gal');
+
+        $this->assertNotNull($flag->expires_on);
+
+        $this->actingAs($this->user)
+            ->post(route('pantry.update', $flag), ['never_expires' => 1, 'quantity' => 1, 'unit' => 'gal'])
+            ->assertRedirect();
+
+        $this->assertNull($flag->fresh()->expires_on);
+        $this->assertFalse($milk->fresh()->tracksExpiry());
+
+        // And it stays off. Buying more must not put it back, or it would have
+        // to be cleared again every week.
+        $line = (new GroceryListBuilder)->addManual('Milk', 1, 'gal');
+        $line->update(['ingredient_id' => $milk->id]);
+        $this->actingAs($this->user)->post(route('grocery.toggle', $line));
+
+        $this->assertNull($flag->fresh()->expires_on);
+        $this->assertTrue($flag->fresh()->has_stock);
+    }
+
+    /** And it can be put back on, for when the answer changes. */
+    public function test_a_date_can_be_reinstated(): void
+    {
+        $milk = $this->ingredient('Milk', IngredientCategory::Dairy, 12);
+        $flag = $this->inventory->add($milk, 1, 'gal');
+
+        $this->actingAs($this->user)->post(route('pantry.update', $flag), ['never_expires' => 1]);
+        $this->assertFalse($milk->fresh()->tracksExpiry());
+
+        $this->actingAs($this->user)->post(route('pantry.update', $flag), [
+            'never_expires' => 0,
+            'expires_on' => '2026-09-20',
+        ]);
+
+        $this->assertTrue($milk->fresh()->tracksExpiry());
+        $this->assertSame('2026-09-20', $flag->fresh()->expires_on->toDateString());
+    }
+
+    /**
+     * Emptying the date field means "take it off". Falling back to the current
+     * value made the field one-way: you could set a date but never remove one.
+     */
+    public function test_an_emptied_date_field_clears_the_date(): void
+    {
+        $flag = $this->inventory->add($this->ingredient('Bread', IngredientCategory::Bakery, 7), 1, 'loaf');
+        $this->assertNotNull($flag->expires_on);
+
+        $this->actingAs($this->user)
+            ->post(route('pantry.update', $flag), ['expires_on' => '', 'quantity' => 1, 'unit' => 'loaf'])
+            ->assertRedirect();
+
+        $this->assertNull($flag->fresh()->expires_on);
+    }
+
+    public function test_an_unknown_category_is_refused(): void
+    {
+        $flag = $this->inventory->add($this->ingredient('Rice', IngredientCategory::PantryDry, 365), 1, 'cup');
+
+        $this->actingAs($this->user)
+            ->post(route('pantry.update', $flag), ['category' => 'larder'])
+            ->assertSessionHasErrors('category');
+    }
+
+    /**
+     * The use-these-up list is pulled out of its sections, so once it runs
+     * past a few items "where do I even look for this?" becomes the question.
+     */
+    public function test_the_use_it_up_rows_say_which_section_a_thing_is_in(): void
+    {
+        $this->inventory->add($this->ingredient('Sour cream', IngredientCategory::Dairy, 2), 1, 'cup');
+        $this->inventory->add($this->ingredient('Rice', IngredientCategory::PantryDry, 300), 2, 'cup');
+
+        $html = $this->actingAs($this->user)->get(route('pantry'))->assertOk()->getContent();
+        $urgent = Str::between($html, 'Use these up', 'Recipes using these');
+
+        $this->assertStringContainsString('Dairy', $urgent);
+        // The rice is months off, so it stays in its own section, where the
+        // heading says it already.
+        $this->assertStringNotContainsString('Rice', $urgent);
+    }
+
     /** Knowing something is going off is only useful if you can act on it. */
     public function test_each_pantry_item_offers_a_recipe_search(): void
     {

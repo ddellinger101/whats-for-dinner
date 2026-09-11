@@ -151,6 +151,13 @@ class IngredientCategoryGuesser
                 'coconut cream', 'cream of chicken', 'cream of mushroom',
                 'cream of celery', 'condensed soup', 'pumpkin pie mix',
                 'pumpkin puree', 'cut green beans', 'water chestnuts',
+                // Beans come in a tin in this kitchen. Named one by one rather
+                // than as "beans", because green beans are produce and the
+                // early dried rule still catches "dried black beans".
+                'garbanzo', 'chickpea', 'chick pea', 'black beans', 'white beans',
+                'great northern beans', 'kidney beans', 'pinto beans',
+                'cannellini', 'navy beans', 'butter beans', 'baked beans',
+                'chili beans', 'chili-style beans', 'red beans',
                 // Things that live in a jar on the shelf rather than in the
                 // fruit bowl: cocktail cherries are not cherries, and pickled
                 // ginger is not ginger.
