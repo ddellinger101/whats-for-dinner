@@ -245,7 +245,8 @@
                                     <circle cx="12" cy="19" r="1.75"/>
                                 </svg>
                             </summary>
-                            <div class="absolute right-0 z-30 mt-1 max-h-80 w-52 overflow-y-auto rounded-xl
+                            <div data-menu
+                                 class="absolute right-0 z-30 mt-1 max-h-80 w-52 overflow-y-auto rounded-xl
                                         border border-ink-200 bg-white p-1.5 shadow-xl">
                                 @unless ($bought)
                                     @if ($item->ingredient_id)
@@ -464,6 +465,39 @@
                 // something that did not happen.
                 row.dataset.bought = wasBought ? 'true' : 'false';
             }
+        });
+    }
+})();
+
+// The row menu opens downwards, which puts "Remove from list" below the fold
+// on the last item in the list — visible in the markup, unreachable with a
+// thumb. It flips above the row when there is not room under it.
+//
+// Measured on open rather than guessed from position in the list: which rows
+// are near the bottom depends on the height of the phone, how far the page is
+// scrolled, and how long the aisle is.
+(() => {
+    const flip = (details) => {
+        const menu = details.querySelector('[data-menu]');
+        if (!menu) return;
+
+        // Reset first, or a menu flipped once stays flipped after scrolling.
+        menu.classList.remove('bottom-full', 'mb-1');
+        menu.classList.add('mt-1');
+
+        const room = window.innerHeight - details.getBoundingClientRect().bottom;
+
+        // The bottom navigation sits over the last few rows, so clearing the
+        // viewport edge is not enough.
+        if (room < menu.offsetHeight + 96) {
+            menu.classList.remove('mt-1');
+            menu.classList.add('bottom-full', 'mb-1');
+        }
+    };
+
+    for (const details of document.querySelectorAll('details:has([data-menu])')) {
+        details.addEventListener('toggle', () => {
+            if (details.open) flip(details);
         });
     }
 })();

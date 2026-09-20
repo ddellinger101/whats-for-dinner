@@ -95,10 +95,33 @@
         </p>
     @endif
 
-    @if ($results->isNotEmpty())
-        <p class="mt-4 px-1 text-xs text-ink-400">
-            {{ $results->count() }} ideas from {{ $providerName }}
+    {{-- Said out loud, because a screen that quietly searched for something
+         you did not type is worse than one that did nothing. --}}
+    @if ($usingPantry)
+        <p class="mt-3 rounded-xl bg-leaf-500/10 px-4 py-2.5 text-sm text-ink-700">
+            Starting from what needs using up: <strong>{{ $pantryTerms }}</strong>.
+            Search for anything else to look further afield.
         </p>
+    @endif
+
+    @if ($results->isNotEmpty())
+        <div class="mt-4 flex items-center gap-2 px-1">
+            <p class="text-xs text-ink-400">
+                {{ $results->count() }} ideas from {{ $providerName }}
+            </p>
+
+            {{-- The recipe block holds three and cannot be paged, so another
+                 three means asking the same thing a slightly different way. --}}
+            <a href="{{ route('discover', array_merge(request()->query(), ['v' => $nextVariation])) }}"
+               class="ml-auto inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium
+                      text-brand-600 transition hover:bg-brand-50">
+                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/>
+                </svg>
+                Show me others
+            </a>
+        </div>
 
         <ul class="mt-2 space-y-2">
             @foreach ($results as $result)

@@ -15,12 +15,13 @@ class Ingredient extends Model
 {
     use HasFactory, HasUuids;
 
-    protected $fillable = ['name', 'category', 'shelf_life_days', 'default_unit', 'is_staple', 'tracks_expiry'];
+    protected $fillable = ['name', 'category', 'shelf_life_days', 'default_unit', 'is_staple', 'tracks_expiry', 'category_set_by_hand'];
 
     // Read back on a freshly created model, which a database default is not.
     protected $attributes = [
         'is_staple' => false,
         'tracks_expiry' => true,
+        'category_set_by_hand' => false,
     ];
 
     protected function casts(): array
@@ -30,6 +31,7 @@ class Ingredient extends Model
             'shelf_life_days' => 'integer',
             'is_staple' => 'boolean',
             'tracks_expiry' => 'boolean',
+            'category_set_by_hand' => 'boolean',
         ];
     }
 

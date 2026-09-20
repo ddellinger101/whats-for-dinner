@@ -178,6 +178,9 @@ class IngredientCategoryGuesser
                 'fish', 'cod', 'tilapia', 'ham', 'chorizo', 'pepperoni', 'brisket',
                 'ribs', 'tenderloin', 'thigh', 'breast', 'drumstick', 'scallop',
                 'crab', 'lobster', 'tofu', 'venison', 'meatball',
+                // The joint, not the verb. Matched as a whole word, so roasted
+                // red peppers and fire roasted tomatoes keep their own answer.
+                'roast', 'roasts',
             ]],
 
             [IngredientCategory::Produce, [

@@ -844,4 +844,37 @@ class PantryTest extends TestCase
         $this->get(route('pantry'))->assertRedirect('/login');
         $this->post(route('pantry.store'), ['name' => 'Onion'])->assertRedirect('/login');
     }
+
+    /**
+     * The guesser is re-run over the whole archive whenever its rules improve.
+     * Without a mark, that sweep walks straight over every correction someone
+     * made by hand — a roast filed under produce, fixed once, went back.
+     */
+    public function test_a_category_chosen_by_hand_survives_the_guessers_next_sweep(): void
+    {
+        $roast = $this->ingredient('Eye of round roast', IngredientCategory::Produce, 6);
+        $flag = $this->inventory->add($roast, 1, null);
+
+        $this->actingAs($this->user)->post(route('pantry.update', $flag), [
+            'quantity' => 1,
+            'category' => IngredientCategory::Protein->value,
+        ])->assertRedirect();
+
+        $this->assertSame(IngredientCategory::Protein, $roast->fresh()->category);
+        $this->assertTrue($roast->fresh()->category_set_by_hand);
+
+        $this->artisan('ingredients:recategorise --apply')->assertSuccessful();
+
+        $this->assertSame(IngredientCategory::Protein, $roast->fresh()->category);
+    }
+
+    /** An untouched row is still the guesser's to correct. */
+    public function test_an_untouched_category_is_still_re_derived(): void
+    {
+        $oil = $this->ingredient('Grapeseed oil', IngredientCategory::Produce, 6);
+
+        $this->artisan('ingredients:recategorise --apply')->assertSuccessful();
+
+        $this->assertSame(IngredientCategory::Condiment, $oil->fresh()->category);
+    }
 }

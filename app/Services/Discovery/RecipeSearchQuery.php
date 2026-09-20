@@ -16,12 +16,36 @@ use Illuminate\Support\Str;
  */
 readonly class RecipeSearchQuery
 {
+    /**
+     * Words that change what a search engine returns without changing what is
+     * being asked for.
+     *
+     * Google's recipe block holds three results and offers no way to page
+     * through it, so "show me three different ones" has to mean asking a
+     * slightly different question. Each of these is a real thing a person
+     * might want, so a variation is never a worse search than the plain one —
+     * and each caches on its own key, so cycling back is free.
+     */
+    private const VARIATIONS = ['', 'easy', 'quick', 'best', 'classic', 'homemade', 'healthy', 'weeknight'];
+
     public function __construct(
         public string $text = '',
         public ?ProteinType $protein = null,
         public ?CategoryTag $tag = null,
         public bool $ketoOnly = false,
+        public int $variation = 0,
     ) {}
+
+    /** The same search, asked a different way. */
+    public function next(): self
+    {
+        return new self($this->text, $this->protein, $this->tag, $this->ketoOnly, $this->variation + 1);
+    }
+
+    public static function variationCount(): int
+    {
+        return count(self::VARIATIONS);
+    }
 
     public function isEmpty(): bool
     {
@@ -34,6 +58,12 @@ readonly class RecipeSearchQuery
     public function toSearchString(): string
     {
         $parts = [];
+
+        // Leading, because it reads as an adjective on whatever follows —
+        // "easy keto chicken recipe" rather than "keto chicken easy recipe".
+        if ($modifier = self::VARIATIONS[$this->variation % count(self::VARIATIONS)]) {
+            $parts[] = $modifier;
+        }
 
         if ($this->ketoOnly) {
             $parts[] = 'keto';

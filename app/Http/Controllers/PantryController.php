@@ -173,6 +173,12 @@ class PantryController extends Controller
                 $flag->ingredient->update([
                     'category' => $category,
                     'shelf_life_days' => $category->defaultShelfLifeDays(),
+                    // Marked so the guesser's next sweep leaves it alone. A
+                    // person who has looked at the thing beats a keyword list
+                    // that has only read its name, and without this a roast
+                    // corrected today goes back to produce the next time the
+                    // rules change.
+                    'category_set_by_hand' => true,
                 ]);
             }
         }

@@ -43,6 +43,13 @@ class RecategoriseIngredients extends Command
         $changes = [];
 
         foreach (Ingredient::orderBy('name')->get() as $ingredient) {
+            // A section chosen by hand is not a guess to be re-made. This
+            // sweep runs whenever the rules improve, and without the check it
+            // walks over every correction someone took the trouble to make.
+            if ($ingredient->category_set_by_hand) {
+                continue;
+            }
+
             $guessed = $guesser->guessOrNull($ingredient->name);
 
             if (! $guessed || $guessed === $ingredient->category) {
