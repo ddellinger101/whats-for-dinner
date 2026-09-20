@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Casts\DateOnly;
+use App\Services\GroceryListBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -35,10 +37,37 @@ class InventoryFlag extends Model
         return [
             'has_stock' => 'boolean',
             'quantity' => 'decimal:3',
-            'acquired_on' => \App\Casts\DateOnly::class,
-            'expires_on' => \App\Casts\DateOnly::class,
+            'acquired_on' => DateOnly::class,
+            'expires_on' => DateOnly::class,
             'last_updated' => 'datetime',
         ];
+    }
+
+    /**
+     * Running out of a staple is what puts it on the grocery list.
+     *
+     * A staple is something the household always wants in. That has always
+     * meant a recipe wanting half a teaspoon of paprika is no reason to buy
+     * paprika; it now also means the jar actually being empty is.
+     *
+     * Hung off the model rather than the one screen that empties things,
+     * because there are four ways for something to run out — marked gone,
+     * cooked away, set to zero by hand, or consumed by a simple item — and
+     * three of them would have been missed.
+     */
+    protected static function booted(): void
+    {
+        static::updated(function (self $flag) {
+            if (! $flag->wasChanged('has_stock') || $flag->has_stock) {
+                return;
+            }
+
+            $ingredient = $flag->ingredient;
+
+            if ($ingredient?->isStaple()) {
+                (new GroceryListBuilder)->addForIngredient($ingredient);
+            }
+        });
     }
 
     public function ingredient(): BelongsTo

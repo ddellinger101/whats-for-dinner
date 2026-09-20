@@ -412,7 +412,7 @@ class PantryStaplesTest extends TestCase
         $this->actingAs($this->user)
             ->get(route('pantry'))
             ->assertOk()
-            ->assertSee('Spice rack')
+            ->assertSee('Staples')
             ->assertSee('Italian seasoning');
     }
 

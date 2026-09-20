@@ -148,6 +148,20 @@ class PantryStaples
             }
         }
 
+        // "Ground cayenne pepper" is the cayenne jar. Rather than list every
+        // spice twice, a leading "ground" is dropped and the list asked again
+        // — safe because a name that is not a spice simply falls through, and
+        // "ground beef" is not on any of these lists.
+        if (str_starts_with($needle, 'ground ')) {
+            $withoutGround = trim(mb_substr($needle, 7));
+
+            foreach (self::all() as $staple) {
+                if (in_array($withoutGround, $staple->allNames(), true)) {
+                    return $staple;
+                }
+            }
+        }
+
         return self::saltAndPepper($needle);
     }
 

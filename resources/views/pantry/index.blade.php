@@ -75,25 +75,24 @@
     @if ($staples->isNotEmpty())
         <details class="mt-6">
             <summary class="cursor-pointer list-none px-1 text-xs font-semibold uppercase tracking-wide text-ink-400">
-                Spice rack &middot; {{ $staples->count() }}
+                Staples &middot; {{ $staples->count() }}
                 <span class="font-normal normal-case tracking-normal text-ink-400">
-                    &mdash; always in, never listed
+                    &mdash; always in, reordered when they run out
                 </span>
             </summary>
-            <ul class="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 rounded-2xl border border-ink-200 bg-white/60
-                       px-4 py-3 sm:grid-cols-3">
+            {{-- Full rows rather than the bare grid this used to be. A staple
+                 is no longer only a spice jar, and anything markable has to be
+                 unmarkable — a name with no edit menu is a one-way door. The
+                 section is collapsed, so the length costs nothing. --}}
+            <ul class="mt-1.5 divide-y divide-ink-100 rounded-2xl border border-ink-200 bg-white shadow-sm">
                 @foreach ($staples as $flag)
-                    <li class="flex items-baseline gap-1.5 py-0.5 text-sm text-ink-700">
-                        <span>{{ $flag->ingredient->name }}</span>
-                        @if ($flag->ingredient->betterFresh())
-                            <span class="text-xs text-leaf-600" title="Better with fresh">&#10022;</span>
-                        @endif
-                    </li>
+                    @include('pantry.row', ['flag' => $flag, 'today' => $today, 'urgent' => false])
                 @endforeach
             </ul>
             <p class="mt-1.5 px-1 text-xs text-ink-400">
-                These never expire and no recipe adds them to the grocery list. A recipe asking
-                for <em>fresh</em> herbs still does &mdash; &#10022; marks the ones worth buying fresh
+                No recipe puts these on the grocery list &mdash; half a teaspoon of paprika is no
+                reason to buy paprika &mdash; but running out does. A recipe asking for
+                <em>fresh</em> herbs still lists them; &#10022; marks the ones worth buying fresh
                 when a recipe does not say.
             </p>
         </details>

@@ -263,8 +263,12 @@ readonly class IngredientLine
 
     private static function cleanName(string $text): string
     {
-        // Everything after the first comma is preparation, not identity.
-        $text = explode(',', $text)[0];
+        // Everything after the first comma is preparation, not identity —
+        // unless everything *before* it is only describing the thing, which is
+        // how "boneless, skinless chicken breasts" was becoming an ingredient
+        // called "Boneless".
+        $head = explode(',', $text)[0];
+        $text = IngredientDescriptors::isOnlyDescriptors($head) ? $text : $head;
 
         // "X or Y" offers a substitution, and the first is what the recipe
         // actually calls for — but only when the left side is a complete thing.

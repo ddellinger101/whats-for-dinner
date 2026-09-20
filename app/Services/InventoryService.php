@@ -135,14 +135,15 @@ class InventoryService
             $recipe->loadMissing('ingredients');
 
             foreach ($recipe->ingredients as $ingredient) {
-                // Cooking does not empty the spice rack in any sense the app
-                // should track. Draining a jar a teaspoon at a time would
-                // eventually mark it gone and put it back on the list, which
-                // is the whole thing staples exist to prevent.
-                if ($ingredient->isStaple()) {
-                    continue;
-                }
-
+                // Staples are no longer skipped here. Running one down used to
+                // be pointless — it would eventually mark the jar gone and put
+                // it back on a list it was meant to stay off. Now that running
+                // out is exactly what puts a staple on the list, cooking with
+                // one should count.
+                //
+                // The spice rack is unaffected: its jars carry no quantity, and
+                // consume() leaves an unmeasured row alone rather than guessing
+                // at what is left.
                 $flag = InventoryFlag::where('ingredient_id', $ingredient->id)->inStock()->first();
 
                 if (! $flag) {
@@ -192,7 +193,7 @@ class InventoryService
 
             $flag = InventoryFlag::where('ingredient_id', $ingredient->id)->inStock()->first();
 
-            if (! $flag || $ingredient->isStaple()) {
+            if (! $flag) {
                 continue;
             }
 

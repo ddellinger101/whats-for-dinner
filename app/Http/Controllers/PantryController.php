@@ -140,9 +140,17 @@ class PantryController extends Controller
             'expires_on' => ['nullable', 'date'],
             'category' => ['nullable', 'string', Rule::enum(IngredientCategory::class)],
             'never_expires' => ['nullable', 'boolean'],
+            'is_staple' => ['nullable', 'boolean'],
         ]);
 
         $neverExpires = $request->boolean('never_expires');
+
+        // Something the household always wants in. It stays off the grocery
+        // list when a recipe merely calls for it, and goes on the moment it
+        // actually runs out — see the note on InventoryFlag.
+        if ($flag->ingredient) {
+            $flag->ingredient->update(['is_staple' => $request->boolean('is_staple')]);
+        }
 
         // Kept on the ingredient, so it means something about milk rather than
         // about this carton. Otherwise the next shop puts the date straight

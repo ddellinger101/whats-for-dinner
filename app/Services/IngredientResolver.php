@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\IngredientCategory;
 use App\Models\Ingredient;
 use App\Support\IngredientCategoryGuesser;
+use App\Support\IngredientDescriptors;
 use App\Support\PantryStaple;
 use App\Support\PantryStaples;
 use App\Support\SpiritName;
@@ -33,7 +34,7 @@ class IngredientResolver
      */
     public function find(string $name): ?Ingredient
     {
-        $name = Str::of($name)->squish()->limit(80, '')->value();
+        $name = $this->canonicalise($name);
 
         if ($name === '') {
             return null;
@@ -68,9 +69,24 @@ class IngredientResolver
             ->first();
     }
 
-    public function resolve(string $name): Ingredient
+    /**
+     * The form of a name the app actually files things under.
+     *
+     * Descriptors come off here — large eggs are eggs, lean ground beef is
+     * ground beef — because otherwise each spelling becomes its own row with
+     * its own pantry stock and its own grocery line, and the app ends up
+     * believing the house keeps four kinds of butter.
+     */
+    private function canonicalise(string $name): string
     {
         $name = Str::of($name)->squish()->limit(80, '')->value();
+
+        return $name === '' ? '' : IngredientDescriptors::strip($name);
+    }
+
+    public function resolve(string $name): Ingredient
+    {
+        $name = $this->canonicalise($name);
 
         // An ingredient with no name matches nothing and helps nobody; it is
         // always a parsing fault upstream, and creating the row hides it.

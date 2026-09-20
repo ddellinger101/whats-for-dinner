@@ -116,6 +116,17 @@
                         Never goes off here
                     </label>
 
+                    {{-- Something the house always wants in. A recipe wanting
+                         half a teaspoon of it is no reason to buy it; the jar
+                         being empty is. --}}
+                    <label class="flex items-center gap-2 text-xs text-ink-600">
+                        <input type="hidden" name="is_staple" value="0">
+                        <input type="checkbox" name="is_staple" value="1"
+                               @checked($flag->ingredient->isStaple())
+                               class="size-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500">
+                        Staple &mdash; reorder when it runs out
+                    </label>
+
                     {{-- The category is a guess made from the name, and a name
                          only says so much: a tin of beans and a bag of them
                          read alike. Correcting it here beats it staying wrong
