@@ -59,6 +59,10 @@ class IngredientCategoryGuesser
                 // the produce rule was claiming it on the onion.
                 'onion strings', 'crispy onion', 'fried onion', 'salad topper',
                 'crouton', 'breadcrumb', 'panko',
+                // Seeds and meals sold dry. Without these, ground flax seed
+                // falls through to produce and is given six days.
+                'flax', 'chia', 'psyllium', 'wheat germ', 'seed meal',
+                'almond flour', 'almond meal', 'coconut flour',
             ]],
 
             /*
@@ -174,7 +178,11 @@ class IngredientCategoryGuesser
 
             [IngredientCategory::Protein, [
                 'chicken', 'beef', 'pork', 'turkey', 'lamb', 'bacon', 'sausage',
-                'steak', 'ground', 'mince', 'shrimp', 'prawn', 'salmon', 'tuna',
+                // Not bare "ground", which was claiming ground flax seed and
+                // ground almonds for the butcher. It bought nothing anyway:
+                // ground beef, ground turkey and ground pork are all caught by
+                // the animal they name.
+                'steak', 'ground meat', 'mince', 'shrimp', 'prawn', 'salmon', 'tuna',
                 'fish', 'cod', 'tilapia', 'ham', 'chorizo', 'pepperoni', 'brisket',
                 'ribs', 'tenderloin', 'thigh', 'breast', 'drumstick', 'scallop',
                 'crab', 'lobster', 'tofu', 'venison', 'meatball',
