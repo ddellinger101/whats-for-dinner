@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Enums\GroceryAisle;
-use App\Enums\GroceryItemSource;
 use App\Enums\GroceryItemStatus;
+use App\Jobs\SettleGroceryPurchase;
 use App\Models\GroceryListItem;
 use App\Models\Ingredient;
 use App\Models\InventoryFlag;
@@ -12,9 +12,9 @@ use App\Models\RepeaterItem;
 use App\Services\GroceryListBuilder;
 use App\Services\InventoryService;
 use App\Support\AisleGuesser;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 /**
@@ -161,7 +161,16 @@ class GroceryController extends Controller
         return back()->with('status', "{$item->item_name} moved to {$item->aisle->label()}.");
     }
 
-    public function toggle(GroceryListItem $item): RedirectResponse
+    /**
+     * Ticking something off does one thing here: records the tick.
+     *
+     * Stocking the pantry is the app's one reliable observation that shopping
+     * came into the house, but it means resolving a name to an ingredient and
+     * writing a stock row, and doing that inside the request is what made this
+     * slow to use in a shop. It is queued instead, half a minute out, so a
+     * mistapped item that is untapped again never reaches the pantry at all.
+     */
+    public function toggle(Request $request, GroceryListItem $item): RedirectResponse|JsonResponse
     {
         $nowPurchased = $item->status === GroceryItemStatus::Needed;
 
@@ -169,15 +178,19 @@ class GroceryController extends Controller
             'status' => $nowPurchased ? GroceryItemStatus::Purchased : GroceryItemStatus::Needed,
         ]);
 
-        // Spec 4.6: buying a repeater is what restarts its clock.
-        if ($nowPurchased && $item->source === GroceryItemSource::Repeater) {
-            RepeaterItem::where('item_name', $item->item_name)->first()?->markPurchased(Carbon::today());
+        if ($nowPurchased) {
+            SettleGroceryPurchase::dispatch($item->id)
+                ->delay(now()->addSeconds(SettleGroceryPurchase::DELAY_SECONDS));
         }
 
-        // Ticking something off is the app's one reliable observation that it
-        // came into the house, so it is what stocks the pantry.
-        if ($nowPurchased) {
-            $this->inventory->recordPurchase($item);
+        // The page does not reload for a tick, so it asks for the counts it
+        // cannot work out on its own.
+        if ($request->wantsJson()) {
+            return response()->json([
+                'purchased' => $nowPurchased,
+                'needed' => GroceryListItem::needed()->count(),
+                'inCart' => GroceryListItem::where('status', GroceryItemStatus::Purchased->value)->count(),
+            ]);
         }
 
         return back();

@@ -59,9 +59,9 @@
     @endif
 
     <div class="mt-4 flex items-baseline gap-2 px-1">
-        <span class="text-sm font-semibold text-ink-900">{{ $neededCount }} to buy</span>
+        <span data-needed-count class="text-sm font-semibold text-ink-900">{{ $neededCount }} to buy</span>
         @if ($purchasedCount > 0)
-            <span class="text-sm text-ink-400">{{ $purchasedCount }} in the cart</span>
+            <span data-cart-count class="text-sm text-ink-400">{{ $purchasedCount }} in the cart</span>
             <form method="POST" action="{{ route('grocery.clear') }}" class="ml-auto">
                 @csrf
                 <button type="submit" class="text-xs font-medium text-ink-400 hover:text-red-600">
@@ -95,24 +95,30 @@
             <ul class="mt-1.5 divide-y divide-ink-100 rounded-2xl border border-ink-200 bg-white shadow-sm">
                 @foreach ($section['items'] as $item)
                     @php $bought = $item->status === \App\Enums\GroceryItemStatus::Purchased; @endphp
-                    <li class="flex items-center gap-2 px-3 py-2 first:rounded-t-2xl last:rounded-b-2xl
-                               {{ $bought ? 'bg-ink-50/60' : '' }}">
-                        <form method="POST" action="{{ route('grocery.toggle', $item) }}" class="shrink-0">
+                    {{-- data-bought drives the row's whole appearance, so the
+                         script can flip one attribute and let CSS do the rest
+                         rather than reaching into half a dozen elements. --}}
+                    <li data-item data-bought="{{ $bought ? 'true' : 'false' }}"
+                        class="group/row flex items-center gap-2 px-3 py-2 first:rounded-t-2xl last:rounded-b-2xl
+                               data-[bought=true]:bg-ink-50/60">
+                        <form method="POST" action="{{ route('grocery.toggle', $item) }}" class="shrink-0"
+                              data-toggle>
                             @csrf
                             <button type="submit"
-                                    class="grid size-tap place-items-center rounded-lg transition hover:bg-ink-100
-                                           {{ $bought ? 'text-brand-600' : 'text-ink-300 hover:text-brand-600' }}"
-                                    aria-label="{{ $bought ? 'Put back on the list' : 'Mark as bought' }}: {{ $item->item_name }}">
-                                @if ($bought)
-                                    <span class="grid size-6 place-items-center rounded-md bg-brand-600 text-white">
-                                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                             stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="m5 12 5 5L20 7"/>
-                                        </svg>
-                                    </span>
-                                @else
-                                    <span class="grid size-6 place-items-center rounded-md border-2 border-current"></span>
-                                @endif
+                                    class="grid size-tap place-items-center rounded-lg text-ink-300 transition
+                                           hover:bg-ink-100 hover:text-brand-600
+                                           group-data-[bought=true]/row:text-brand-600"
+                                    aria-label="Mark as bought or put back: {{ $item->item_name }}">
+                                <span class="grid size-6 place-items-center rounded-md border-2 border-current
+                                             text-white group-data-[bought=true]/row:border-brand-600
+                                             group-data-[bought=true]/row:bg-brand-600">
+                                    <svg class="size-4 opacity-0 transition-opacity
+                                                group-data-[bought=true]/row:opacity-100"
+                                         viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                         stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="m5 12 5 5L20 7"/>
+                                    </svg>
+                                </span>
                             </button>
                         </form>
 
@@ -128,8 +134,9 @@
                                  what you are scanning for in a shop, and it was
                                  sharing the row with the amount and three
                                  icons, leaving it a third of the width. --}}
-                            <p class="truncate text-sm font-medium
-                                      {{ $bought ? 'text-ink-400 line-through' : 'text-ink-900' }}">
+                            <p class="truncate text-sm font-medium text-ink-900
+                                      group-data-[bought=true]/row:text-ink-400
+                                      group-data-[bought=true]/row:line-through">
                                 {{ $item->item_name }}
                             </p>
 
@@ -140,8 +147,8 @@
                                      the second line, not demoted in function. --}}
                                 <details class="relative shrink-0">
                                     <summary class="-ml-1 cursor-pointer list-none rounded px-1 py-0.5 font-medium
-                                                    transition hover:bg-ink-100
-                                                    {{ $bought ? 'text-ink-400' : 'text-ink-600' }}"
+                                                    text-ink-600 transition hover:bg-ink-100
+                                                    group-data-[bought=true]/row:text-ink-400"
                                              aria-label="Change how much {{ $item->item_name }} to buy">
                                         {{ $amount ?? '+ amount' }}
                                     </summary>
@@ -411,6 +418,54 @@
     sync();
     // Rotating the phone changes what fits.
     window.addEventListener('resize', sync);
+})();
+
+// Ticking something off should feel like ticking something off. The row used
+// to post a form and wait for a whole page to come back, which in a shop on a
+// phone is a visible pause on the one action you do dozens of times.
+//
+// The row flips immediately and the request follows. The server no longer
+// stocks the pantry inside that request either — it queues it half a minute
+// out — so there is nothing slow left on the far side to wait for.
+(() => {
+    const counts = {
+        needed: document.querySelector('[data-needed-count]'),
+        inCart: document.querySelector('[data-cart-count]'),
+    };
+
+    const setCounts = (data) => {
+        if (counts.needed) counts.needed.textContent = `${data.needed} to buy`;
+        if (counts.inCart) counts.inCart.textContent = `${data.inCart} in the cart`;
+    };
+
+    for (const form of document.querySelectorAll('form[data-toggle]')) {
+        const row = form.closest('[data-item]');
+        if (!row) continue;
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            // Flipped before the request, not after it.
+            const wasBought = row.dataset.bought === 'true';
+            row.dataset.bought = wasBought ? 'false' : 'true';
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+
+                if (!response.ok) throw new Error(response.status);
+
+                setCounts(await response.json());
+            } catch {
+                // Put it back rather than leaving the screen claiming
+                // something that did not happen.
+                row.dataset.bought = wasBought ? 'true' : 'false';
+            }
+        });
+    }
 })();
 </script>
 @endpush

@@ -382,7 +382,7 @@ class GroceryAislesTest extends TestCase
         $item = (new GroceryListBuilder)->addManual('Boneless skinless chicken breasts');
 
         $html = $this->actingAs($this->user)->get(route('grocery'))->assertOk()->getContent();
-        $row = Str::between($html, '<li class="flex items-center', '</li>');
+        $row = Str::between($html, '<li data-item', '</li>');
 
         $this->assertSame(2, substr_count($row, 'size-tap'), 'the tick and the menu, nothing else');
 
@@ -397,7 +397,7 @@ class GroceryAislesTest extends TestCase
         $item = (new GroceryListBuilder)->addManual('Heavy cream', 2.0, 'cup');
 
         $html = $this->actingAs($this->user)->get(route('grocery'))->assertOk()->getContent();
-        $row = Str::between($html, '<li class="flex items-center', '</li>');
+        $row = Str::between($html, '<li data-item', '</li>');
 
         $name = strpos($row, 'Heavy cream');
         $amount = strpos($row, 'Change how much');
@@ -426,7 +426,7 @@ class GroceryAislesTest extends TestCase
         }
 
         $html = $this->actingAs($this->user)->get(route('grocery'))->assertOk()->getContent();
-        $row = Str::between($html, '<li class="flex items-center', '</li>');
+        $row = Str::between($html, '<li data-item', '</li>');
 
         // The whole label is in the markup; the truncation is presentational,
         // so opening it needs no round trip.

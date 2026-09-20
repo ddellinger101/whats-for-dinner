@@ -19,6 +19,9 @@ class GroceryListItem extends Model
     // the add-item autofill and the aisle guesser's memory.
     use HasFactory, HasUuids, \Illuminate\Database\Eloquent\SoftDeletes;
 
+    // settled_at is deliberately absent: it is written once, by the job that
+    // takes the shopping into the pantry, and nothing else has any business
+    // setting it.
     protected $fillable = [
         'item_name', 'quantity', 'planned_quantity', 'unit', 'aisle', 'source', 'status',
         'added_date', 'ingredient_id',
@@ -33,6 +36,7 @@ class GroceryListItem extends Model
             'added_date' => DateOnly::class,
             'quantity' => 'decimal:3',
             'planned_quantity' => 'decimal:3',
+            'settled_at' => 'datetime',
         ];
     }
 
