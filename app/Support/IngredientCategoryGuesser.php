@@ -63,6 +63,11 @@ class IngredientCategoryGuesser
                 // falls through to produce and is given six days.
                 'flax', 'chia', 'psyllium', 'wheat germ', 'seed meal',
                 'almond flour', 'almond meal', 'coconut flour',
+                'cornmeal', 'corn meal', 'semolina',
+                // Dried spices whose fresh form is produce. The rack aliases
+                // catch the ones on the rack; these are the rest.
+                'ground ginger', 'ground turmeric', 'ground coriander',
+                'ground fennel', 'ground sage', 'ground thyme',
             ]],
 
             /*
