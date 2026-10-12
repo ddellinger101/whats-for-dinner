@@ -352,6 +352,27 @@ class PantryTest extends TestCase
         $this->assertNotNull($flag->expires_on);
     }
 
+    /** The spice rack carries no date, and the confirmation used to format one anyway. */
+    public function test_adding_something_that_never_expires_does_not_fail(): void
+    {
+        foreach (['Parsley', 'Basil'] as $name) {
+            $this->actingAs($this->user)
+                ->post(route('pantry.store'), ['name' => $name])
+                ->assertRedirect()
+                ->assertSessionHas('status');
+        }
+
+        $staple = $this->ingredient('Sourdough starter', IngredientCategory::Produce, 6);
+        $staple->update(['is_staple' => true]);
+
+        $this->actingAs($this->user)
+            ->post(route('pantry.store'), ['name' => 'Sourdough starter'])
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Sourdough starter added.');
+
+        $this->assertNull(InventoryFlag::where('ingredient_id', $staple->id)->firstOrFail()->expires_on);
+    }
+
     /** A hand-added item must match what recipes refer to, or it steers nothing. */
     public function test_a_hand_added_item_reuses_the_existing_ingredient(): void
     {

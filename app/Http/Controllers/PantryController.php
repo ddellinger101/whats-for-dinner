@@ -129,7 +129,12 @@ class PantryController extends Controller
             $validated['note'] ?? null,
         );
 
-        return back()->with('status', "{$ingredient->name} added, good until {$flag->expires_on->format('j M')}.");
+        // No date on the spice rack or on anything marked as never going off,
+        // so there is nothing to promise — and formatting the absence of one
+        // was a 500 for every dried herb typed in here.
+        return back()->with('status', $flag->expires_on
+            ? "{$ingredient->name} added, good until {$flag->expires_on->format('j M')}."
+            : "{$ingredient->name} added.");
     }
 
     public function update(Request $request, InventoryFlag $flag): RedirectResponse
